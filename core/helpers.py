@@ -50,3 +50,18 @@ def metric_card(parent, title, value, unit="", color=None, width=180):
     else:
         frame.pack_configure(pady=(0, 10))
     return frame
+
+
+def status_badge(parent, text, status="active"):
+    colours = {
+        "active":   (COLORS["green"],  "#0A2218"),
+        "inactive": (COLORS["red"],    "#2A0A0A"),
+        "pending":  (COLORS["yellow"], "#2A2200"),
+        "low":      (COLORS["red"],    "#2A0A0A"),
+        "warning":  (COLORS["yellow"], "#2A2200"),
+        "info":     (COLORS["blue"],   "#0A1A2A"),
+    }
+    fg, bg = colours.get(status.lower(), (COLORS["text_secondary"], COLORS["bg_input"]))
+    lbl = tk.Label(parent, text=f" {text} ", bg=bg, fg=fg,
+                   font=FONTS["badge"], padx=4, pady=1)
+    return lbl

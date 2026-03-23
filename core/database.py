@@ -151,3 +151,13 @@ def initialize_database():
     conn.commit()
     conn.close()
     _seed_sample_data()
+
+
+def _seed_sample_data():
+    """Insert sample data if tables are empty."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM categories")
+    if cur.fetchone()[0] > 0:
+        conn.close()
+        return

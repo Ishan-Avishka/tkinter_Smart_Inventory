@@ -60,3 +60,19 @@ FONTS = {
     "label":     ("Consolas", 10),
     "entry":     ("Consolas", 11),
 }
+
+def apply_theme(root: tk.Tk):
+    """Apply industrial dark theme to root window."""
+    root.configure(bg=COLORS["bg_dark"])
+
+    style = ttk.Style(root)
+    style.theme_use("clam")
+
+    # ── Frame & LabelFrame ─────────────────────────────────────────────────
+    style.configure("TFrame", background=COLORS["bg_dark"])
+    style.configure("Card.TFrame", background=COLORS["bg_card"])
+    style.configure("Panel.TFrame", background=COLORS["bg_panel"])
+    style.configure("TLabelframe", background=COLORS["bg_card"],
+                    bordercolor=COLORS["border"], relief="flat")
+    style.configure("TLabelframe.Label", background=COLORS["bg_card"],
+                    foreground=COLORS["accent"], font=FONTS["subtitle"])

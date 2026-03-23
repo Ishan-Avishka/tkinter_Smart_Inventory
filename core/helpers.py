@@ -32,3 +32,21 @@ def search_bar(parent, variable, placeholder="Search...", command=None):
     if command:
         variable.trace_add("write", lambda *_: command())
     return frame
+
+
+def metric_card(parent, title, value, unit="", color=None, width=180):
+    c = color or COLORS["accent"]
+    frame = tk.Frame(parent, bg=COLORS["bg_card"],
+                     highlightbackground=c,
+                     highlightthickness=2, width=width)
+    frame.pack_propagate(False)
+    tk.Label(frame, text=title, bg=COLORS["bg_card"],
+             fg=COLORS["text_secondary"], font=FONTS["label"]).pack(pady=(12, 0))
+    tk.Label(frame, text=str(value), bg=COLORS["bg_card"],
+             fg=c, font=FONTS["metric_sm"]).pack()
+    if unit:
+        tk.Label(frame, text=unit, bg=COLORS["bg_card"],
+                 fg=COLORS["text_muted"], font=FONTS["small"]).pack(pady=(0, 10))
+    else:
+        frame.pack_configure(pady=(0, 10))
+    return frame

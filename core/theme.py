@@ -76,3 +76,39 @@ def apply_theme(root: tk.Tk):
                     bordercolor=COLORS["border"], relief="flat")
     style.configure("TLabelframe.Label", background=COLORS["bg_card"],
                     foreground=COLORS["accent"], font=FONTS["subtitle"])
+    
+
+
+# ── Labels ─────────────────────────────────────────────────────────────
+    style.configure("TLabel",
+                    background=COLORS["bg_dark"],
+                    foreground=COLORS["text_primary"],
+                    font=FONTS["body"])
+    style.configure("Header.TLabel",
+                    background=COLORS["bg_dark"],
+                    foreground=COLORS["text_primary"],
+                    font=FONTS["header"])
+    style.configure("Title.TLabel",
+                    background=COLORS["bg_panel"],
+                    foreground=COLORS["accent"],
+                    font=FONTS["title"])
+    style.configure("Subtitle.TLabel",
+                    background=COLORS["bg_card"],
+                    foreground=COLORS["text_secondary"],
+                    font=FONTS["subtitle"])
+    style.configure("Muted.TLabel",
+                    background=COLORS["bg_card"],
+                    foreground=COLORS["text_muted"],
+                    font=FONTS["small"])
+    style.configure("Success.TLabel",
+                    background=COLORS["bg_card"],
+                    foreground=COLORS["green"],
+                    font=FONTS["body"])
+    style.configure("Warning.TLabel",
+                    background=COLORS["bg_card"],
+                    foreground=COLORS["yellow"],
+                    font=FONTS["body"])
+    style.configure("Danger.TLabel",
+                    background=COLORS["bg_card"],
+                    foreground=COLORS["red"],
+                    font=FONTS["body"])

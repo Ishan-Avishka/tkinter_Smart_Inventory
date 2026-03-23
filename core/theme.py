@@ -112,3 +112,63 @@ def apply_theme(root: tk.Tk):
                     background=COLORS["bg_card"],
                     foreground=COLORS["red"],
                     font=FONTS["body"])
+
+ # ── Buttons ────────────────────────────────────────────────────────────
+    style.configure("TButton",
+                    background=COLORS["bg_input"],
+                    foreground=COLORS["text_primary"],
+                    font=FONTS["btn"],
+                    relief="flat",
+                    padding=(12, 6),
+                    borderwidth=1)
+    style.map("TButton",
+              background=[("active", COLORS["bg_hover"]),
+                          ("pressed", COLORS["bg_selected"])],
+              foreground=[("active", COLORS["text_primary"])])
+
+    style.configure("Accent.TButton",
+                    background=COLORS["accent"],
+                    foreground="#FFFFFF",
+                    font=FONTS["btn"],
+                    relief="flat",
+                    padding=(14, 7))
+    style.map("Accent.TButton",
+              background=[("active", COLORS["accent_dark"]),
+                          ("pressed", "#9A440A")])
+
+    style.configure("Success.TButton",
+                    background=COLORS["green"],
+                    foreground="#FFFFFF",
+                    font=FONTS["btn"],
+                    relief="flat",
+                    padding=(14, 7))
+    style.map("Success.TButton",
+              background=[("active", "#16A34A")])
+
+    style.configure("Danger.TButton",
+                    background=COLORS["red"],
+                    foreground="#FFFFFF",
+                    font=FONTS["btn"],
+                    relief="flat",
+                    padding=(14, 7))
+    style.map("Danger.TButton",
+              background=[("active", "#DC2626")])
+
+    style.configure("Blue.TButton",
+                    background=COLORS["blue"],
+                    foreground="#FFFFFF",
+                    font=FONTS["btn"],
+                    relief="flat",
+                    padding=(14, 7))
+    style.map("Blue.TButton",
+              background=[("active", COLORS["blue_dark"])])
+
+    style.configure("Ghost.TButton",
+                    background=COLORS["bg_panel"],
+                    foreground=COLORS["text_secondary"],
+                    font=FONTS["btn"],
+                    relief="flat",
+                    padding=(10, 5))
+    style.map("Ghost.TButton",
+              foreground=[("active", COLORS["accent"])],
+              background=[("active", COLORS["bg_card"])])

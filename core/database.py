@@ -161,3 +161,28 @@ def _seed_sample_data():
     if cur.fetchone()[0] > 0:
         conn.close()
         return
+    
+    cur.executescript("""
+        INSERT INTO categories (name, description) VALUES
+            ('Electronics', 'Electronic components and devices'),
+            ('Mechanical Parts', 'Gears, bolts, and mechanical components'),
+            ('Raw Materials', 'Steel, plastic, rubber materials'),
+            ('Packaging', 'Boxes, tapes, wrapping materials'),
+            ('Tools & Equipment', 'Hand tools and power equipment');
+
+        INSERT INTO suppliers (name, contact_person, email, phone, address, city, country, payment_terms, status) VALUES
+            ('TechParts Co.', 'James Wilson', 'james@techparts.com', '+1-555-0101', '123 Industrial Ave', 'Chicago', 'USA', 'Net 30', 'Active'),
+            ('MegaSupply Ltd', 'Sarah Chen', 'sarah@megasupply.com', '+1-555-0102', '456 Commerce St', 'Detroit', 'USA', 'Net 15', 'Active'),
+            ('GlobalMaterials Inc', 'Ahmed Hassan', 'ahmed@globmat.com', '+44-20-7946-0958', '789 Trade Road', 'London', 'UK', 'Net 45', 'Active'),
+            ('FastShip Vendors', 'Maria Garcia', 'maria@fastship.com', '+1-555-0104', '321 Logistics Blvd', 'Houston', 'USA', 'COD', 'Active');
+
+        INSERT INTO products (sku, name, category_id, supplier_id, unit, cost_price, selling_price, current_stock, min_stock, reorder_point, barcode, location, status) VALUES
+            ('SKU-001', 'Circuit Board Type-A', 1, 1, 'pcs', 45.00, 89.99, 150, 20, 30, '8901234567890', 'A-01-01', 'Active'),
+            ('SKU-002', 'Resistor Pack 100ohm', 1, 1, 'pack', 2.50, 5.99, 500, 50, 100, '8901234567891', 'A-01-02', 'Active'),
+            ('SKU-003', 'Steel Bolt M8x40', 2, 2, 'pcs', 0.80, 1.99, 2000, 200, 500, '8901234567892', 'B-02-01', 'Active'),
+            ('SKU-004', 'Aluminum Sheet 2mm', 3, 3, 'sheet', 12.00, 24.99, 80, 10, 20, '8901234567893', 'C-03-01', 'Active'),
+            ('SKU-005', 'Bubble Wrap 50m Roll', 4, 4, 'roll', 8.00, 15.99, 35, 5, 10, '8901234567894', 'D-04-01', 'Active'),
+            ('SKU-006', 'Electric Drill 18V', 5, 1, 'pcs', 75.00, 149.99, 8, 5, 10, '8901234567895', 'E-05-01', 'Active'),
+            ('SKU-007', 'Copper Wire 2.5mm', 1, 3, 'meter', 1.20, 2.49, 1200, 100, 200, '8901234567896', 'A-02-01', 'Active'),
+            ('SKU-008', 'Hydraulic Seal Kit', 2, 2, 'kit', 22.00, 44.99, 3, 10, 15, '8901234567897', 'B-01-03', 'Active');
+    """)

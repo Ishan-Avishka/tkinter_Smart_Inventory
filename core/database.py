@@ -161,7 +161,7 @@ def _seed_sample_data():
     if cur.fetchone()[0] > 0:
         conn.close()
         return
-    
+
     cur.executescript("""
         INSERT INTO categories (name, description) VALUES
             ('Electronics', 'Electronic components and devices'),
@@ -186,3 +186,6 @@ def _seed_sample_data():
             ('SKU-007', 'Copper Wire 2.5mm', 1, 3, 'meter', 1.20, 2.49, 1200, 100, 200, '8901234567896', 'A-02-01', 'Active'),
             ('SKU-008', 'Hydraulic Seal Kit', 2, 2, 'kit', 22.00, 44.99, 3, 10, 15, '8901234567897', 'B-01-03', 'Active');
     """)
+
+    conn.commit()
+    conn.close()

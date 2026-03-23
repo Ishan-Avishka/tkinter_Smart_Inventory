@@ -22,6 +22,21 @@ def make_scrollable_treeview(parent, columns, col_widths=None, height=15):
     vsb.grid(row=0, column=1, sticky="ns")
     hsb.grid(row=1, column=0, sticky="ew")
 
+    for col in columns:
+        w = (col_widths or {}).get(col, 120)
+        tree.heading(col, text=col.replace("_", " ").title())
+        tree.column(col, width=w, minwidth=60)
+
+    # Alternating row colours
+    tree.tag_configure("odd",  background=COLORS["bg_card"])
+    tree.tag_configure("even", background=COLORS["bg_panel"])
+    tree.tag_configure("low",  background="#3B1F1F", foreground=COLORS["red"])
+    tree.tag_configure("warn", background="#3B2F1F", foreground=COLORS["yellow"])
+    tree.tag_configure("ok",   background=COLORS["bg_card"])
+
+    return frame, tree
+
+
 def search_bar(parent, variable, placeholder="Search...", command=None):
     frame = ttk.Frame(parent, style="Card.TFrame")
     lbl = tk.Label(frame, text="🔍", bg=COLORS["bg_card"],
@@ -66,6 +81,7 @@ def status_badge(parent, text, status="active"):
                    font=FONTS["badge"], padx=4, pady=1)
     return lbl
 
+
 def confirm_dialog(parent, title, message):
     """Returns True if user confirms."""
     from tkinter import messagebox
@@ -75,3 +91,18 @@ def confirm_dialog(parent, title, message):
 def info_dialog(parent, title, message):
     from tkinter import messagebox
     messagebox.showinfo(title, message, parent=parent)
+
+
+def error_dialog(parent, title, message):
+    from tkinter import messagebox
+    messagebox.showerror(title, message, parent=parent)
+
+
+def section_header(parent, text, bg=None):
+    bg = bg or COLORS["bg_panel"]
+    frame = tk.Frame(parent, bg=bg)
+    tk.Label(frame, text="▌ " + text, bg=bg,
+             fg=COLORS["accent"], font=FONTS["subtitle"]).pack(side="left", padx=8, pady=6)
+    tk.Frame(frame, bg=COLORS["border"], height=1).pack(
+        side="left", fill="x", expand=True, padx=(0, 8))
+    return frame

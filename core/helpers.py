@@ -21,3 +21,14 @@ def make_scrollable_treeview(parent, columns, col_widths=None, height=15):
     tree.grid(row=0, column=0, sticky="nsew")
     vsb.grid(row=0, column=1, sticky="ns")
     hsb.grid(row=1, column=0, sticky="ew")
+
+def search_bar(parent, variable, placeholder="Search...", command=None):
+    frame = ttk.Frame(parent, style="Card.TFrame")
+    lbl = tk.Label(frame, text="🔍", bg=COLORS["bg_card"],
+                   fg=COLORS["text_secondary"], font=("Segoe UI Emoji", 12))
+    lbl.pack(side="left", padx=(8, 4))
+    entry = ttk.Entry(frame, textvariable=variable, font=FONTS["entry"], width=30)
+    entry.pack(side="left", padx=(0, 8), pady=4)
+    if command:
+        variable.trace_add("write", lambda *_: command())
+    return frame

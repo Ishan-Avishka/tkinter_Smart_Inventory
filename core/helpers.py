@@ -65,3 +65,13 @@ def status_badge(parent, text, status="active"):
     lbl = tk.Label(parent, text=f" {text} ", bg=bg, fg=fg,
                    font=FONTS["badge"], padx=4, pady=1)
     return lbl
+
+def confirm_dialog(parent, title, message):
+    """Returns True if user confirms."""
+    from tkinter import messagebox
+    return messagebox.askyesno(title, message, parent=parent)
+
+
+def info_dialog(parent, title, message):
+    from tkinter import messagebox
+    messagebox.showinfo(title, message, parent=parent)

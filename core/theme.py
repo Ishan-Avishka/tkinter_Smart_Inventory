@@ -44,3 +44,19 @@ COLORS = {
     "status_pending":  "#EAB308",
     "status_warning":  "#F97316",
 }
+
+FONTS = {
+    "header":    ("Consolas", 22, "bold"),
+    "title":     ("Consolas", 16, "bold"),
+    "subtitle":  ("Consolas", 13, "bold"),
+    "body":      ("Consolas", 11),
+    "small":     ("Consolas", 9),
+    "mono":      ("Courier New", 11),
+    "nav":       ("Consolas", 11, "bold"),
+    "badge":     ("Consolas", 9, "bold"),
+    "metric":    ("Consolas", 28, "bold"),
+    "metric_sm": ("Consolas", 18, "bold"),
+    "btn":       ("Consolas", 11, "bold"),
+    "label":     ("Consolas", 10),
+    "entry":     ("Consolas", 11),
+}

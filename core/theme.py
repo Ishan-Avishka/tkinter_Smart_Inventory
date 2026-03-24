@@ -61,6 +61,7 @@ FONTS = {
     "entry":     ("Consolas", 11),
 }
 
+
 def apply_theme(root: tk.Tk):
     """Apply industrial dark theme to root window."""
     root.configure(bg=COLORS["bg_dark"])
@@ -76,10 +77,8 @@ def apply_theme(root: tk.Tk):
                     bordercolor=COLORS["border"], relief="flat")
     style.configure("TLabelframe.Label", background=COLORS["bg_card"],
                     foreground=COLORS["accent"], font=FONTS["subtitle"])
-    
 
-
-# ── Labels ─────────────────────────────────────────────────────────────
+    # ── Labels ─────────────────────────────────────────────────────────────
     style.configure("TLabel",
                     background=COLORS["bg_dark"],
                     foreground=COLORS["text_primary"],
@@ -113,7 +112,7 @@ def apply_theme(root: tk.Tk):
                     foreground=COLORS["red"],
                     font=FONTS["body"])
 
- # ── Buttons ────────────────────────────────────────────────────────────
+    # ── Buttons ────────────────────────────────────────────────────────────
     style.configure("TButton",
                     background=COLORS["bg_input"],
                     foreground=COLORS["text_primary"],
@@ -172,3 +171,123 @@ def apply_theme(root: tk.Tk):
     style.map("Ghost.TButton",
               foreground=[("active", COLORS["accent"])],
               background=[("active", COLORS["bg_card"])])
+
+    # ── Entry & Combobox ───────────────────────────────────────────────────
+    style.configure("TEntry",
+                    fieldbackground=COLORS["bg_input"],
+                    foreground=COLORS["text_primary"],
+                    insertcolor=COLORS["accent"],
+                    bordercolor=COLORS["border"],
+                    lightcolor=COLORS["border"],
+                    darkcolor=COLORS["border"],
+                    font=FONTS["entry"],
+                    padding=(8, 5))
+    style.map("TEntry",
+              bordercolor=[("focus", COLORS["border_focus"])],
+              lightcolor=[("focus", COLORS["border_focus"])],
+              darkcolor=[("focus", COLORS["border_focus"])])
+
+    style.configure("TCombobox",
+                    fieldbackground=COLORS["bg_input"],
+                    background=COLORS["bg_input"],
+                    foreground=COLORS["text_primary"],
+                    arrowcolor=COLORS["accent"],
+                    bordercolor=COLORS["border"],
+                    font=FONTS["entry"],
+                    padding=(8, 4))
+    style.map("TCombobox",
+              fieldbackground=[("readonly", COLORS["bg_input"])],
+              foreground=[("readonly", COLORS["text_primary"])])
+
+    # ── Treeview / Table ───────────────────────────────────────────────────
+    style.configure("Treeview",
+                    background=COLORS["bg_card"],
+                    foreground=COLORS["text_primary"],
+                    fieldbackground=COLORS["bg_card"],
+                    bordercolor=COLORS["border"],
+                    rowheight=30,
+                    font=FONTS["body"])
+    style.configure("Treeview.Heading",
+                    background=COLORS["bg_panel"],
+                    foreground=COLORS["accent"],
+                    relief="flat",
+                    font=FONTS["subtitle"],
+                    padding=(8, 6))
+    style.map("Treeview",
+              background=[("selected", COLORS["bg_selected"])],
+              foreground=[("selected", COLORS["text_primary"])])
+    style.map("Treeview.Heading",
+              background=[("active", COLORS["bg_hover"])])
+
+    # ── Notebook (Tabs) ────────────────────────────────────────────────────
+    style.configure("TNotebook",
+                    background=COLORS["bg_panel"],
+                    bordercolor=COLORS["border"],
+                    tabmargins=[2, 5, 2, 0])
+    style.configure("TNotebook.Tab",
+                    background=COLORS["bg_panel"],
+                    foreground=COLORS["text_secondary"],
+                    font=FONTS["nav"],
+                    padding=[16, 8])
+    style.map("TNotebook.Tab",
+              background=[("selected", COLORS["bg_card"])],
+              foreground=[("selected", COLORS["accent"])])
+
+    # ── Scrollbar ─────────────────────────────────────────────────────────
+    style.configure("TScrollbar",
+                    background=COLORS["bg_input"],
+                    troughcolor=COLORS["bg_panel"],
+                    arrowcolor=COLORS["text_muted"],
+                    relief="flat",
+                    borderwidth=0)
+    style.map("TScrollbar",
+              background=[("active", COLORS["accent"])])
+
+    # ── Separator ─────────────────────────────────────────────────────────
+    style.configure("TSeparator", background=COLORS["border"])
+
+    # ── Progressbar ───────────────────────────────────────────────────────
+    style.configure("TProgressbar",
+                    background=COLORS["accent"],
+                    troughcolor=COLORS["bg_input"],
+                    borderwidth=0,
+                    thickness=8)
+    style.configure("Green.TProgressbar",
+                    background=COLORS["green"],
+                    troughcolor=COLORS["bg_input"],
+                    borderwidth=0,
+                    thickness=8)
+    style.configure("Red.TProgressbar",
+                    background=COLORS["red"],
+                    troughcolor=COLORS["bg_input"],
+                    borderwidth=0,
+                    thickness=8)
+
+    # ── Spinbox ───────────────────────────────────────────────────────────
+    style.configure("TSpinbox",
+                    fieldbackground=COLORS["bg_input"],
+                    foreground=COLORS["text_primary"],
+                    insertcolor=COLORS["accent"],
+                    arrowcolor=COLORS["accent"],
+                    bordercolor=COLORS["border"],
+                    font=FONTS["entry"])
+
+    # ── Checkbutton & Radiobutton ──────────────────────────────────────────
+    style.configure("TCheckbutton",
+                    background=COLORS["bg_card"],
+                    foreground=COLORS["text_primary"],
+                    font=FONTS["body"])
+    style.configure("TRadiobutton",
+                    background=COLORS["bg_card"],
+                    foreground=COLORS["text_primary"],
+                    font=FONTS["body"])
+
+    return style
+
+
+def card_frame(parent, **kwargs) -> ttk.Frame:
+    return ttk.Frame(parent, style="Card.TFrame", **kwargs)
+
+
+def panel_frame(parent, **kwargs) -> ttk.Frame:
+    return ttk.Frame(parent, style="Panel.TFrame", **kwargs)

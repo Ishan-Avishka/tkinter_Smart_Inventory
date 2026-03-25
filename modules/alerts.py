@@ -111,3 +111,25 @@ class AlertsModule(ttk.Frame):
                      fg=color, font=FONTS["metric_sm"]).pack()
             tk.Label(card, text=label, bg=COLORS["bg_card"],
                      fg=COLORS["text_secondary"], font=FONTS["label"]).pack()
+            
+        # Table
+        for r in self.tree.get_children(): self.tree.delete(r)
+        flt = self.filter_var.get()
+        sql = """SELECT a.*, p.name AS prod_name FROM alerts a
+                 LEFT JOIN products p ON p.id=a.product_id WHERE 1=1"""
+        if flt == "Unread": sql += " AND a.is_read=0"
+        if flt == "Read":   sql += " AND a.is_read=1"
+        rows = conn.execute(sql + " ORDER BY a.created_at DESC").fetchall()
+        conn.close()
+        for r in rows:
+            severity = {"OUT_OF_STOCK": "🔴 Critical",
+                        "LOW_STOCK":    "🟡 Warning",
+                        "REORDER":      "🔵 Info"}.get(r["alert_type"], r["alert_type"])
+            tag = {"OUT_OF_STOCK": "critical",
+                   "LOW_STOCK": "warning",
+                   "REORDER": "info"}.get(r["alert_type"], "info")
+            self.tree.insert("", "end",
+                             values=(severity, r["prod_name"] or "System",
+                                     r["message"], r["created_at"][:16],
+                                     "✓" if r["is_read"] else ""),
+                             tags=(tag,))

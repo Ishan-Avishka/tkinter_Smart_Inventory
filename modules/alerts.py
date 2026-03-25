@@ -90,3 +90,24 @@ class AlertsModule(ttk.Frame):
         self.tree.tag_configure("critical", background="#2A0A0A", foreground=COLORS["red"])
         self.tree.tag_configure("warning",  background="#2A2200", foreground=COLORS["yellow"])
         self.tree.tag_configure("info",     background="#0A1A2A", foreground=COLORS["blue"])
+
+    def _load(self, *_):
+        # Clear summary
+        for w in self.summary_frame.winfo_children():
+            w.destroy()
+
+        conn = get_connection()
+        out_of  = conn.execute("SELECT COUNT(*) FROM alerts WHERE alert_type='OUT_OF_STOCK' AND is_read=0").fetchone()[0]
+        low     = conn.execute("SELECT COUNT(*) FROM alerts WHERE alert_type='LOW_STOCK' AND is_read=0").fetchone()[0]
+        reorder = conn.execute("SELECT COUNT(*) FROM alerts WHERE alert_type='REORDER' AND is_read=0").fetchone()[0]
+
+        for label, val, color in [("Out of Stock", out_of, COLORS["red"]),
+                                   ("Low Stock", low, COLORS["yellow"]),
+                                   ("Reorder Soon", reorder, COLORS["blue"])]:
+            card = tk.Frame(self.summary_frame, bg=COLORS["bg_card"],
+                            highlightbackground=color, highlightthickness=2)
+            card.pack(side="left", padx=8, ipadx=16, ipady=6)
+            tk.Label(card, text=str(val), bg=COLORS["bg_card"],
+                     fg=color, font=FONTS["metric_sm"]).pack()
+            tk.Label(card, text=label, bg=COLORS["bg_card"],
+                     fg=COLORS["text_secondary"], font=FONTS["label"]).pack()

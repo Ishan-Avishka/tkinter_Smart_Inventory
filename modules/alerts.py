@@ -68,7 +68,6 @@ class AlertsModule(ttk.Frame):
                    command=self._mark_selected_read).pack(side="left", padx=4)
         ttk.Button(bf, text="⟳ Refresh Alerts", style="Ghost.TButton",
                    command=self._refresh).pack(side="left", padx=4)
-        
 
         # Summary cards
         self.summary_frame = tk.Frame(self, bg=COLORS["bg_panel"])
@@ -111,7 +110,7 @@ class AlertsModule(ttk.Frame):
                      fg=color, font=FONTS["metric_sm"]).pack()
             tk.Label(card, text=label, bg=COLORS["bg_card"],
                      fg=COLORS["text_secondary"], font=FONTS["label"]).pack()
-            
+
         # Table
         for r in self.tree.get_children(): self.tree.delete(r)
         flt = self.filter_var.get()
@@ -133,3 +132,34 @@ class AlertsModule(ttk.Frame):
                                      r["message"], r["created_at"][:16],
                                      "✓" if r["is_read"] else ""),
                              tags=(tag,))
+
+    def _mark_all_read(self):
+        conn = get_connection()
+        conn.execute("UPDATE alerts SET is_read=1 WHERE is_read=0")
+        conn.commit()
+        conn.close()
+        self._load()
+
+    def _mark_selected_read(self):
+        sel = self.tree.selection()
+        if not sel:
+            info_dialog(self, "Select", "Please select alerts to mark as read.")
+            return
+        # Re-map row index to alert
+        conn = get_connection()
+        flt = self.filter_var.get()
+        sql = "SELECT id FROM alerts WHERE 1=1"
+        if flt == "Unread": sql += " AND is_read=0"
+        if flt == "Read":   sql += " AND is_read=1"
+        ids = [r["id"] for r in conn.execute(sql + " ORDER BY created_at DESC").fetchall()]
+        for item in sel:
+            idx = self.tree.index(item)
+            if idx < len(ids):
+                conn.execute("UPDATE alerts SET is_read=1 WHERE id=?", (ids[idx],))
+        conn.commit()
+        conn.close()
+        self._load()
+
+    def _refresh(self):
+        check_and_create_alerts()
+        self._load()

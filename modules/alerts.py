@@ -46,3 +46,25 @@ def unread_alert_count():
     n = conn.execute("SELECT COUNT(*) FROM alerts WHERE is_read=0").fetchone()[0]
     conn.close()
     return n
+
+
+class AlertsModule(ttk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent, style="Panel.TFrame")
+        self._build_ui()
+        self._load()
+
+    def _build_ui(self):
+        top = ttk.Frame(self, style="Panel.TFrame")
+        top.pack(fill="x", padx=16, pady=(12, 6))
+        tk.Label(top, text="LOW STOCK ALERTS", bg=COLORS["bg_panel"],
+                 fg=COLORS["accent"], font=FONTS["title"]).pack(side="left")
+
+        bf = ttk.Frame(top, style="Panel.TFrame")
+        bf.pack(side="right")
+        ttk.Button(bf, text="✓ Mark All Read", style="Success.TButton",
+                   command=self._mark_all_read).pack(side="left", padx=4)
+        ttk.Button(bf, text="✓ Mark Selected Read", style="Blue.TButton",
+                   command=self._mark_selected_read).pack(side="left", padx=4)
+        ttk.Button(bf, text="⟳ Refresh Alerts", style="Ghost.TButton",
+                   command=self._refresh).pack(side="left", padx=4)

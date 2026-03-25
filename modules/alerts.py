@@ -68,3 +68,25 @@ class AlertsModule(ttk.Frame):
                    command=self._mark_selected_read).pack(side="left", padx=4)
         ttk.Button(bf, text="⟳ Refresh Alerts", style="Ghost.TButton",
                    command=self._refresh).pack(side="left", padx=4)
+        
+
+        # Summary cards
+        self.summary_frame = tk.Frame(self, bg=COLORS["bg_panel"])
+        self.summary_frame.pack(fill="x", padx=16, pady=8)
+
+        self.filter_var = tk.StringVar(value="Unread")
+        filter_row = ttk.Frame(self, style="Panel.TFrame")
+        filter_row.pack(fill="x", padx=16, pady=4)
+        tk.Label(filter_row, text="Show:", bg=COLORS["bg_panel"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).pack(side="left", padx=4)
+        for v in ["Unread", "All", "Read"]:
+            ttk.Radiobutton(filter_row, text=v, variable=self.filter_var,
+                            value=v, command=self._load).pack(side="left", padx=6)
+
+        cols = ["Severity", "Product", "Message", "Time", "Read"]
+        widths = {"Severity": 120, "Product": 180, "Message": 420, "Time": 140, "Read": 60}
+        tf, self.tree = make_scrollable_treeview(self, cols, widths, height=22)
+        tf.pack(fill="both", expand=True, padx=16, pady=(4, 16))
+        self.tree.tag_configure("critical", background="#2A0A0A", foreground=COLORS["red"])
+        self.tree.tag_configure("warning",  background="#2A2200", foreground=COLORS["yellow"])
+        self.tree.tag_configure("info",     background="#0A1A2A", foreground=COLORS["blue"])

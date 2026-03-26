@@ -121,3 +121,135 @@ class AnalyticsModule(ttk.Frame):
         ax.xaxis.label.set_color(COLORS["text_secondary"])
         ax.yaxis.label.set_color(COLORS["text_secondary"])
         ax.grid(axis="y", color=COLORS["border"], linewidth=0.5, alpha=0.5)
+
+    def _draw_overview(self, days):
+        fig, canvas = self._make_fig(self.tab_overview, figsize=(13, 5))
+        conn = get_connection()
+
+        # Left: Category distribution pie
+        ax1 = fig.add_subplot(1, 2, 1)
+        cat_data = conn.execute("""SELECT c.name, SUM(p.current_stock)
+            FROM products p JOIN categories c ON c.id=p.category_id
+            WHERE p.status='Active' GROUP BY c.name ORDER BY 2 DESC""").fetchall()
+        if cat_data:
+            labels = [r[0] for r in cat_data]
+            sizes  = [r[1] for r in cat_data]
+            palette = [COLORS["accent"], COLORS["blue"], COLORS["green"],
+                       COLORS["purple"], COLORS["cyan"], COLORS["yellow"]]
+            ax1.pie(sizes, labels=labels, autopct="%1.0f%%",
+                    colors=palette[:len(labels)],
+                    textprops={"color": COLORS["text_secondary"], "fontsize": 8},
+                    wedgeprops={"edgecolor": COLORS["bg_panel"], "linewidth": 2})
+            ax1.set_title("Stock by Category", color=COLORS["accent"], fontsize=11)
+            ax1.set_facecolor(COLORS["bg_panel"])
+
+        # Right: Top 10 products by stock value
+        ax2 = fig.add_subplot(1, 2, 2)
+        val_data = conn.execute("""SELECT name, current_stock * cost_price AS val
+            FROM products WHERE status='Active' ORDER BY val DESC LIMIT 10""").fetchall()
+        if val_data:
+            names = [r[0][:18] for r in val_data]
+            vals  = [r[1] for r in val_data]
+            bars = ax2.barh(names, vals, color=COLORS["accent"], edgecolor="none")
+            self._style_ax(ax2, "Top 10 Products by Value ($)")
+        conn.close()
+        fig.tight_layout(pad=2)
+        canvas.draw()
+
+    def _draw_stock_analysis(self):
+        fig, canvas = self._make_fig(self.tab_stock, figsize=(13, 5))
+        conn = get_connection()
+        rows = conn.execute("""SELECT name, current_stock, min_stock, max_stock
+            FROM products WHERE status='Active' ORDER BY current_stock ASC LIMIT 15""").fetchall()
+        conn.close()
+        if rows:
+            ax = fig.add_subplot(1, 1, 1)
+            names   = [r[0][:20] for r in rows]
+            current = [r[1] for r in rows]
+            minimum = [r[2] for r in rows]
+            import numpy as np
+            x = range(len(names))
+            w = 0.35
+            ax.bar([i - w/2 for i in x], current, w, label="Current",
+                   color=COLORS["blue"], edgecolor="none")
+            ax.bar([i + w/2 for i in x], minimum, w, label="Minimum",
+                   color=COLORS["red"], edgecolor="none", alpha=0.7)
+            ax.set_xticks(list(x))
+            ax.set_xticklabels(names, rotation=35, ha="right", fontsize=8)
+            self._style_ax(ax, "Current vs Minimum Stock Levels")
+            ax.legend(facecolor=COLORS["bg_card"], edgecolor=COLORS["border"],
+                      labelcolor=COLORS["text_secondary"])
+        fig.tight_layout(pad=2)
+        canvas.draw()
+
+    def _draw_sales_trend(self, days):
+        fig, canvas = self._make_fig(self.tab_sales, figsize=(13, 5))
+        conn = get_connection()
+        rows = conn.execute(f"""SELECT DATE(sale_date) AS day, SUM(total_amount) AS total
+            FROM sales_records WHERE status='Completed'
+            AND sale_date >= datetime('now','-{days} days')
+            GROUP BY day ORDER BY day""").fetchall()
+        conn.close()
+        ax = fig.add_subplot(1, 1, 1)
+        if rows:
+            dates = [r[0] for r in rows]
+            totals = [r[1] for r in rows]
+            ax.fill_between(range(len(dates)), totals,
+                            alpha=0.3, color=COLORS["accent"])
+            ax.plot(range(len(dates)), totals, color=COLORS["accent"],
+                    linewidth=2, marker="o", markersize=4)
+            ax.set_xticks(range(0, len(dates), max(1, len(dates)//10)))
+            ax.set_xticklabels([dates[i] for i in range(0, len(dates),
+                                 max(1, len(dates)//10))],
+                               rotation=30, ha="right", fontsize=8)
+            self._style_ax(ax, f"Sales Revenue (Last {days} Days)")
+        else:
+            ax.text(0.5, 0.5, "No sales data for period", ha="center", va="center",
+                    color=COLORS["text_muted"], fontsize=12, transform=ax.transAxes)
+            self._style_ax(ax, "Sales Trend")
+        fig.tight_layout(pad=2)
+        canvas.draw()
+
+    def _draw_valuation(self):
+        fig, canvas = self._make_fig(self.tab_valuation, figsize=(13, 5))
+        conn = get_connection()
+
+        ax1 = fig.add_subplot(1, 2, 1)
+        rows = conn.execute("""SELECT c.name,
+            SUM(p.current_stock * p.cost_price) AS cost_val,
+            SUM(p.current_stock * p.selling_price) AS sell_val
+            FROM products p JOIN categories c ON c.id=p.category_id
+            WHERE p.status='Active' GROUP BY c.name ORDER BY cost_val DESC""").fetchall()
+        if rows:
+            cats  = [r[0] for r in rows]
+            costs = [r[1] for r in rows]
+            sells = [r[2] for r in rows]
+            x = range(len(cats))
+            w = 0.35
+            ax1.bar([i - w/2 for i in x], costs, w, label="Cost Value",
+                    color=COLORS["blue"], edgecolor="none")
+            ax1.bar([i + w/2 for i in x], sells, w, label="Retail Value",
+                    color=COLORS["green"], edgecolor="none")
+            ax1.set_xticks(list(x))
+            ax1.set_xticklabels(cats, rotation=20, ha="right", fontsize=8)
+            self._style_ax(ax1, "Inventory Valuation by Category ($)")
+            ax1.legend(facecolor=COLORS["bg_card"], edgecolor=COLORS["border"],
+                       labelcolor=COLORS["text_secondary"])
+
+        ax2 = fig.add_subplot(1, 2, 2)
+        po_rows = conn.execute("""SELECT status, COUNT(*) FROM purchase_orders
+            GROUP BY status""").fetchall()
+        if po_rows:
+            labels = [r[0] for r in po_rows]
+            sizes  = [r[1] for r in po_rows]
+            palette = [COLORS["accent"], COLORS["green"], COLORS["yellow"],
+                       COLORS["red"], COLORS["blue"]]
+            ax2.pie(sizes, labels=labels, autopct="%1.0f%%",
+                    colors=palette[:len(labels)],
+                    textprops={"color": COLORS["text_secondary"], "fontsize": 9},
+                    wedgeprops={"edgecolor": COLORS["bg_panel"], "linewidth": 2})
+            ax2.set_title("Purchase Orders by Status", color=COLORS["accent"], fontsize=11)
+            ax2.set_facecolor(COLORS["bg_panel"])
+        conn.close()
+        fig.tight_layout(pad=2)
+        canvas.draw()

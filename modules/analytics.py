@@ -102,3 +102,22 @@ class AnalyticsModule(ttk.Frame):
                 tk.Label(tab, text="Install matplotlib for charts:\npip install matplotlib",
                          bg=COLORS["bg_panel"], fg=COLORS["text_secondary"],
                          font=FONTS["subtitle"]).pack(expand=True)
+
+    # ── Chart helpers ──────────────────────────────────────────────────────
+    def _make_fig(self, tab, figsize=(12, 5)):
+        for w in tab.winfo_children(): w.destroy()
+        fig = Figure(figsize=figsize, facecolor=COLORS["bg_panel"])
+        canvas = FigureCanvasTkAgg(fig, master=tab)
+        canvas.get_tk_widget().pack(fill="both", expand=True, padx=4, pady=4)
+        return fig, canvas
+
+    def _style_ax(self, ax, title=""):
+        ax.set_facecolor(COLORS["bg_card"])
+        ax.tick_params(colors=COLORS["text_secondary"], labelsize=8)
+        for spine in ax.spines.values():
+            spine.set_edgecolor(COLORS["border"])
+        if title:
+            ax.set_title(title, color=COLORS["accent"], fontsize=11, pad=8)
+        ax.xaxis.label.set_color(COLORS["text_secondary"])
+        ax.yaxis.label.set_color(COLORS["text_secondary"])
+        ax.grid(axis="y", color=COLORS["border"], linewidth=0.5, alpha=0.5)

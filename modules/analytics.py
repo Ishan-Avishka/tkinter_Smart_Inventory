@@ -57,3 +57,48 @@ class AnalyticsModule(ttk.Frame):
         nb.add(self.tab_stock,     text="  Stock Analysis  ")
         nb.add(self.tab_sales,     text="  Sales Trend  ")
         nb.add(self.tab_valuation, text="  Valuation  ")
+
+    def _load_data(self, *_):
+        # Clear KPIs
+        for w in self.kpi_frame.winfo_children(): w.destroy()
+
+        days = int(self.period_var.get())
+        conn = get_connection()
+
+        total_products = conn.execute("SELECT COUNT(*) FROM products WHERE status='Active'").fetchone()[0]
+        total_stock    = conn.execute("SELECT SUM(current_stock) FROM products WHERE status='Active'").fetchone()[0] or 0
+        low_count      = conn.execute("SELECT COUNT(*) FROM products WHERE current_stock <= min_stock AND status='Active'").fetchone()[0]
+        inv_value      = conn.execute("SELECT SUM(current_stock * cost_price) FROM products WHERE status='Active'").fetchone()[0] or 0
+        total_sales    = conn.execute(f"SELECT SUM(total_amount) FROM sales_records WHERE status='Completed' AND sale_date >= datetime('now','-{days} days')").fetchone()[0] or 0
+        total_orders   = conn.execute(f"SELECT COUNT(*) FROM sales_records WHERE status='Completed' AND sale_date >= datetime('now','-{days} days')").fetchone()[0]
+        total_suppliers= conn.execute("SELECT COUNT(*) FROM suppliers WHERE status='Active'").fetchone()[0]
+        pending_pos    = conn.execute("SELECT COUNT(*) FROM purchase_orders WHERE status IN ('Pending','Ordered')").fetchone()[0]
+
+        conn.close()
+
+        kpis = [
+            ("Total Products", total_products, "items", COLORS["accent"]),
+            ("Total Stock",    total_stock,    "units", COLORS["blue"]),
+            ("Inventory Value",f"${inv_value:,.0f}", "",  COLORS["green"]),
+            ("Sales (period)", f"${total_sales:,.0f}", "", COLORS["purple"]),
+            ("Orders",         total_orders,  "sales", COLORS["cyan"]),
+            ("Low Stock",      low_count,     "items", COLORS["red"]),
+            ("Suppliers",      total_suppliers,"active",COLORS["yellow"]),
+            ("Pending POs",    pending_pos,   "orders",COLORS["accent_light"]),
+        ]
+        for title, val, unit, color in kpis:
+            card = metric_card(self.kpi_frame, title, val, unit, color, width=150)
+            card.pack(side="left", padx=6, pady=4, fill="y")
+
+        if MPL_OK:
+            self._draw_overview(days)
+            self._draw_stock_analysis()
+            self._draw_sales_trend(days)
+            self._draw_valuation()
+        else:
+            for tab in [self.tab_overview, self.tab_stock,
+                        self.tab_sales, self.tab_valuation]:
+                for w in tab.winfo_children(): w.destroy()
+                tk.Label(tab, text="Install matplotlib for charts:\npip install matplotlib",
+                         bg=COLORS["bg_panel"], fg=COLORS["text_secondary"],
+                         font=FONTS["subtitle"]).pack(expand=True)

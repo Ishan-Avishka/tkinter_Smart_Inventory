@@ -40,3 +40,20 @@ class AnalyticsModule(ttk.Frame):
                      values=["7", "30", "90", "365"],
                      state="readonly", width=6).pack(side="left")
         self.period_var.trace_add("write", lambda *_: self._load_data())
+
+        # KPI cards row
+        self.kpi_frame = tk.Frame(self, bg=COLORS["bg_panel"])
+        self.kpi_frame.pack(fill="x", padx=16, pady=8)
+
+        # Notebook for charts
+        nb = ttk.Notebook(self)
+        nb.pack(fill="both", expand=True, padx=16, pady=4)
+
+        self.tab_overview  = ttk.Frame(nb, style="Panel.TFrame")
+        self.tab_stock     = ttk.Frame(nb, style="Panel.TFrame")
+        self.tab_sales     = ttk.Frame(nb, style="Panel.TFrame")
+        self.tab_valuation = ttk.Frame(nb, style="Panel.TFrame")
+        nb.add(self.tab_overview,  text="  Overview  ")
+        nb.add(self.tab_stock,     text="  Stock Analysis  ")
+        nb.add(self.tab_sales,     text="  Sales Trend  ")
+        nb.add(self.tab_valuation, text="  Valuation  ")

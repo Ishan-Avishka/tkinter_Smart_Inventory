@@ -121,3 +121,37 @@ class AnalyticsModule(ttk.Frame):
         ax.xaxis.label.set_color(COLORS["text_secondary"])
         ax.yaxis.label.set_color(COLORS["text_secondary"])
         ax.grid(axis="y", color=COLORS["border"], linewidth=0.5, alpha=0.5)
+
+    def _draw_overview(self, days):
+        fig, canvas = self._make_fig(self.tab_overview, figsize=(13, 5))
+        conn = get_connection()
+
+        # Left: Category distribution pie
+        ax1 = fig.add_subplot(1, 2, 1)
+        cat_data = conn.execute("""SELECT c.name, SUM(p.current_stock)
+            FROM products p JOIN categories c ON c.id=p.category_id
+            WHERE p.status='Active' GROUP BY c.name ORDER BY 2 DESC""").fetchall()
+        if cat_data:
+            labels = [r[0] for r in cat_data]
+            sizes  = [r[1] for r in cat_data]
+            palette = [COLORS["accent"], COLORS["blue"], COLORS["green"],
+                       COLORS["purple"], COLORS["cyan"], COLORS["yellow"]]
+            ax1.pie(sizes, labels=labels, autopct="%1.0f%%",
+                    colors=palette[:len(labels)],
+                    textprops={"color": COLORS["text_secondary"], "fontsize": 8},
+                    wedgeprops={"edgecolor": COLORS["bg_panel"], "linewidth": 2})
+            ax1.set_title("Stock by Category", color=COLORS["accent"], fontsize=11)
+            ax1.set_facecolor(COLORS["bg_panel"])
+
+        # Right: Top 10 products by stock value
+        ax2 = fig.add_subplot(1, 2, 2)
+        val_data = conn.execute("""SELECT name, current_stock * cost_price AS val
+            FROM products WHERE status='Active' ORDER BY val DESC LIMIT 10""").fetchall()
+        if val_data:
+            names = [r[0][:18] for r in val_data]
+            vals  = [r[1] for r in val_data]
+            bars = ax2.barh(names, vals, color=COLORS["accent"], edgecolor="none")
+            self._style_ax(ax2, "Top 10 Products by Value ($)")
+        conn.close()
+        fig.tight_layout(pad=2)
+        canvas.draw()

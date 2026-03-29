@@ -37,3 +37,45 @@ class ProductsModule(ttk.Frame):
                    style="Danger.TButton", command=self._delete_product).pack(side="left", padx=4)
         ttk.Button(btn_frame, text="⟳ Refresh",
                    command=self._load_products).pack(side="left", padx=4)
+
+        # Search & filter bar
+        search_row = ttk.Frame(self, style="Panel.TFrame")
+        search_row.pack(fill="x", padx=16, pady=4)
+        sb = search_bar(search_row, self.search_var, "Search SKU, name, category...",
+                        command=self._load_products)
+        sb.pack(side="left")
+
+        tk.Label(search_row, text="Category:", bg=COLORS["bg_panel"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).pack(side="left", padx=(16, 4))
+        self.cat_var = tk.StringVar(value="All")
+        self.cat_combo = ttk.Combobox(search_row, textvariable=self.cat_var,
+                                      state="readonly", width=18, font=FONTS["entry"])
+        self.cat_combo.pack(side="left")
+        self.cat_combo.bind("<<ComboboxSelected>>", lambda _: self._load_products())
+
+        tk.Label(search_row, text="Status:", bg=COLORS["bg_panel"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).pack(side="left", padx=(12, 4))
+        self.status_var = tk.StringVar(value="All")
+        ttk.Combobox(search_row, textvariable=self.status_var,
+                     values=["All", "Active", "Inactive"], state="readonly",
+                     width=10, font=FONTS["entry"]).pack(side="left")
+        self.status_var.trace_add("write", lambda *_: self._load_products())
+
+        # Table
+        cols = ["SKU", "Name", "Category", "Supplier", "Unit",
+                "Cost", "Price", "Stock", "Min", "Location", "Status"]
+        widths = {"SKU": 90, "Name": 200, "Category": 120, "Supplier": 130,
+                  "Unit": 60, "Cost": 75, "Price": 75, "Stock": 65,
+                  "Min": 55, "Location": 90, "Status": 80}
+        tframe, self.tree = make_scrollable_treeview(self, cols, widths, height=22)
+        tframe.pack(fill="both", expand=True, padx=16, pady=(6, 16))
+
+        self.tree.bind("<Double-1>", lambda _: self._edit_product())
+        self._load_categories()
+
+    def _load_categories(self):
+        conn = get_connection()
+        rows = conn.execute("SELECT name FROM categories ORDER BY name").fetchall()
+        conn.close()
+        cats = ["All"] + [r["name"] for r in rows]
+        self.cat_combo["values"] = cats

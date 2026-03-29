@@ -285,3 +285,57 @@ class ProductDialog(tk.Toplevel):
                    style="Accent.TButton", command=self._save).pack(side="right", padx=8)
         ttk.Button(btn_row, text="✕ Cancel",
                    style="Ghost.TButton", command=self.destroy).pack(side="right")
+
+    def _save(self):
+        sku = self.v_sku.get().strip()
+        name = self.v_name.get().strip()
+        if not sku or not name:
+            error_dialog(self, "Validation Error", "SKU and Product Name are required.")
+            return
+        try:
+            cost  = float(self.v_cost.get() or 0)
+            price = float(self.v_price.get() or 0)
+            stock = int(self.v_stock.get() or 0)
+            min_s = int(self.v_min.get() or 10)
+            max_s = int(self.v_max.get() or 1000)
+            reo   = int(self.v_reorder.get() or 20)
+        except ValueError:
+            error_dialog(self, "Validation Error", "Numeric fields must contain valid numbers.")
+            return
+
+        conn = get_connection()
+        cat_name = self.v_cat.get()
+        cat_id = None
+        if cat_name:
+            r = conn.execute("SELECT id FROM categories WHERE name=?", (cat_name,)).fetchone()
+            if r: cat_id = r["id"]
+
+        sup_name = self.v_sup.get()
+        sup_id = self._sup_map.get(sup_name)
+
+        desc = self.txt_desc.get("1.0", "end").strip()
+        params = (name, cat_id, sup_id, self.v_unit.get(), cost, price,
+                  stock, min_s, max_s, reo,
+                  self.v_barcode.get().strip(), self.v_loc.get().strip(),
+                  self.v_status.get(), desc)
+
+        if self.product:
+            conn.execute("""
+                UPDATE products SET name=?,category_id=?,supplier_id=?,unit=?,
+                cost_price=?,selling_price=?,current_stock=?,min_stock=?,max_stock=?,
+                reorder_point=?,barcode=?,location=?,status=?,description=?,
+                updated_at=datetime('now') WHERE sku=?
+            """, params + (sku,))
+        else:
+            conn.execute("""
+                INSERT INTO products
+                (sku,name,category_id,supplier_id,unit,cost_price,selling_price,
+                current_stock,min_stock,max_stock,reorder_point,barcode,location,status,description)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (sku,) + params)
+
+        conn.commit()
+        conn.close()
+        if self.on_save:
+            self.on_save()
+        self.destroy()

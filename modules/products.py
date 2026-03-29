@@ -153,3 +153,135 @@ class ProductsModule(ttk.Frame):
             conn.commit()
             conn.close()
             self._load_products()
+
+
+# ── Product Dialog ────────────────────────────────────────────────────────
+
+class ProductDialog(tk.Toplevel):
+    def __init__(self, parent, title="Product", product=None, on_save=None):
+        super().__init__(parent)
+        self.product = product
+        self.on_save = on_save
+        self.title(title)
+        self.configure(bg=COLORS["bg_panel"])
+        self.resizable(False, False)
+        self._build()
+        self.grab_set()
+        self.transient(parent)
+        self.geometry("640x700")
+
+    def _lbl_entry(self, frame, label, row, col=0, width=28, value=""):
+        tk.Label(frame, text=label, bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=row, column=col, sticky="w", padx=8, pady=4)
+        var = tk.StringVar(value=str(value) if value is not None else "")
+        e = ttk.Entry(frame, textvariable=var, width=width, font=FONTS["entry"])
+        e.grid(row=row, column=col + 1, sticky="ew", padx=8, pady=4)
+        return var
+
+    def _build(self):
+        p = self.product or {}
+
+        canvas = tk.Canvas(self, bg=COLORS["bg_panel"], highlightthickness=0)
+        sb = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        canvas.pack(fill="both", expand=True)
+
+        inner = tk.Frame(canvas, bg=COLORS["bg_panel"])
+        cw = canvas.create_window((0, 0), window=inner, anchor="nw")
+        inner.bind("<Configure>",
+                   lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(cw, width=e.width))
+
+        # ── Section: Basic Info ──────────────────────────────────────────
+        section_header(inner, "Basic Information").pack(fill="x", padx=12, pady=(12, 4))
+        basic = tk.Frame(inner, bg=COLORS["bg_card"])
+        basic.pack(fill="x", padx=12, pady=4)
+        basic.columnconfigure(1, weight=1); basic.columnconfigure(3, weight=1)
+
+        self.v_sku    = self._lbl_entry(basic, "SKU*", 0, 0, value=p.get("sku", ""))
+        self.v_name   = self._lbl_entry(basic, "Product Name*", 1, 0, value=p.get("name", ""))
+        self.v_barcode= self._lbl_entry(basic, "Barcode", 2, 0, value=p.get("barcode", ""))
+        self.v_loc    = self._lbl_entry(basic, "Warehouse Location", 3, 0, value=p.get("location", ""))
+
+        tk.Label(basic, text="Category", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=0, column=2, sticky="w", padx=8, pady=4)
+        self.v_cat = tk.StringVar()
+        conn = get_connection()
+        cats = [r["name"] for r in conn.execute("SELECT name FROM categories ORDER BY name")]
+        sups = [(r["id"], r["name"]) for r in conn.execute("SELECT id,name FROM suppliers ORDER BY name")]
+        conn.close()
+        cat_cb = ttk.Combobox(basic, textvariable=self.v_cat, values=cats,
+                              state="readonly", width=18, font=FONTS["entry"])
+        cat_cb.grid(row=0, column=3, sticky="ew", padx=8, pady=4)
+        if p.get("category_id"):
+            conn2 = get_connection()
+            c = conn2.execute("SELECT name FROM categories WHERE id=?",
+                              (p["category_id"],)).fetchone()
+            conn2.close()
+            if c: self.v_cat.set(c["name"])
+
+        tk.Label(basic, text="Supplier", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=1, column=2, sticky="w", padx=8, pady=4)
+        self.v_sup = tk.StringVar()
+        self._sup_map = {n: i for i, n in sups}
+        sup_cb = ttk.Combobox(basic, textvariable=self.v_sup,
+                              values=[n for _, n in sups],
+                              state="readonly", width=18, font=FONTS["entry"])
+        sup_cb.grid(row=1, column=3, sticky="ew", padx=8, pady=4)
+        if p.get("supplier_id"):
+            match = next((n for i, n in sups if i == p["supplier_id"]), "")
+            self.v_sup.set(match)
+
+        tk.Label(basic, text="Unit", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=2, column=2, sticky="w", padx=8, pady=4)
+        self.v_unit = tk.StringVar(value=p.get("unit", "pcs"))
+        ttk.Combobox(basic, textvariable=self.v_unit,
+                     values=["pcs", "kg", "ltr", "meter", "pack", "roll", "kit", "set"],
+                     width=18, font=FONTS["entry"]).grid(
+            row=2, column=3, sticky="ew", padx=8, pady=4)
+
+        tk.Label(basic, text="Status", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=3, column=2, sticky="w", padx=8, pady=4)
+        self.v_status = tk.StringVar(value=p.get("status", "Active"))
+        ttk.Combobox(basic, textvariable=self.v_status,
+                     values=["Active", "Inactive", "Discontinued"],
+                     state="readonly", width=18, font=FONTS["entry"]).grid(
+            row=3, column=3, sticky="ew", padx=8, pady=4)
+
+        # ── Section: Pricing & Stock ─────────────────────────────────────
+        section_header(inner, "Pricing & Stock Levels").pack(fill="x", padx=12, pady=(12, 4))
+        pricing = tk.Frame(inner, bg=COLORS["bg_card"])
+        pricing.pack(fill="x", padx=12, pady=4)
+        pricing.columnconfigure(1, weight=1); pricing.columnconfigure(3, weight=1)
+
+        self.v_cost    = self._lbl_entry(pricing, "Cost Price ($)*", 0, 0, value=p.get("cost_price", 0))
+        self.v_price   = self._lbl_entry(pricing, "Selling Price ($)*", 1, 0, value=p.get("selling_price", 0))
+        self.v_stock   = self._lbl_entry(pricing, "Current Stock", 2, 0, value=p.get("current_stock", 0))
+        self.v_min     = self._lbl_entry(pricing, "Min Stock", 0, 2, value=p.get("min_stock", 10))
+        self.v_max     = self._lbl_entry(pricing, "Max Stock", 1, 2, value=p.get("max_stock", 1000))
+        self.v_reorder = self._lbl_entry(pricing, "Reorder Point", 2, 2, value=p.get("reorder_point", 20))
+
+        # ── Section: Description ─────────────────────────────────────────
+        section_header(inner, "Description").pack(fill="x", padx=12, pady=(12, 4))
+        desc_frame = tk.Frame(inner, bg=COLORS["bg_card"])
+        desc_frame.pack(fill="x", padx=12, pady=(4, 12))
+        self.txt_desc = tk.Text(desc_frame, height=4, bg=COLORS["bg_input"],
+                                fg=COLORS["text_primary"], insertbackground=COLORS["accent"],
+                                font=FONTS["entry"], relief="flat", padx=8, pady=6)
+        self.txt_desc.pack(fill="x", padx=8, pady=8)
+        if p.get("description"):
+            self.txt_desc.insert("1.0", p["description"])
+
+        # ── Buttons ──────────────────────────────────────────────────────
+        btn_row = tk.Frame(inner, bg=COLORS["bg_panel"])
+        btn_row.pack(fill="x", padx=12, pady=12)
+        ttk.Button(btn_row, text="✓ Save Product",
+                   style="Accent.TButton", command=self._save).pack(side="right", padx=8)
+        ttk.Button(btn_row, text="✕ Cancel",
+                   style="Ghost.TButton", command=self.destroy).pack(side="right")

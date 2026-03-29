@@ -79,3 +79,77 @@ class ProductsModule(ttk.Frame):
         conn.close()
         cats = ["All"] + [r["name"] for r in rows]
         self.cat_combo["values"] = cats
+
+    # ── Data ──────────────────────────────────────────────────────────────
+    def _load_products(self, *_):
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+
+        q = self.search_var.get().lower()
+        cat = self.cat_var.get()
+        status = self.status_var.get()
+
+        sql = """
+            SELECT p.sku, p.name,
+                   COALESCE(c.name,'—') AS category,
+                   COALESCE(s.name,'—') AS supplier,
+                   p.unit, p.cost_price, p.selling_price,
+                   p.current_stock, p.min_stock, p.location, p.status
+            FROM products p
+            LEFT JOIN categories c ON c.id = p.category_id
+            LEFT JOIN suppliers  s ON s.id = p.supplier_id
+            WHERE 1=1
+        """
+        params = []
+        if cat != "All":
+            sql += " AND c.name = ?"
+            params.append(cat)
+        if status != "All":
+            sql += " AND p.status = ?"
+            params.append(status)
+
+        conn = get_connection()
+        rows = conn.execute(sql, params).fetchall()
+        conn.close()
+
+        for i, r in enumerate(rows):
+            vals = (r["sku"], r["name"], r["category"], r["supplier"],
+                    r["unit"], f"${r['cost_price']:.2f}", f"${r['selling_price']:.2f}",
+                    r["current_stock"], r["min_stock"], r["location"] or "—", r["status"])
+            if q and not any(q in str(v).lower() for v in vals):
+                continue
+            tag = "odd" if i % 2 == 0 else "even"
+            if r["current_stock"] <= r["min_stock"]:
+                tag = "low"
+            self.tree.insert("", "end", values=vals, tags=(tag,))
+
+    # ── CRUD Dialogs ──────────────────────────────────────────────────────
+    def _add_product(self):
+        ProductDialog(self, title="Add Product", on_save=self._load_products)
+
+    def _edit_product(self):
+        sel = self.tree.selection()
+        if not sel:
+            info_dialog(self, "Select Product", "Please select a product to edit.")
+            return
+        sku = self.tree.item(sel[0])["values"][0]
+        conn = get_connection()
+        prod = conn.execute("SELECT * FROM products WHERE sku=?", (sku,)).fetchone()
+        conn.close()
+        if prod:
+            ProductDialog(self, title="Edit Product",
+                          product=dict(prod), on_save=self._load_products)
+
+    def _delete_product(self):
+        sel = self.tree.selection()
+        if not sel:
+            info_dialog(self, "Select Product", "Please select a product to delete.")
+            return
+        sku = self.tree.item(sel[0])["values"][0]
+        if confirm_dialog(self, "Delete Product",
+                          f"Delete product {sku}? This cannot be undone."):
+            conn = get_connection()
+            conn.execute("DELETE FROM products WHERE sku=?", (sku,))
+            conn.commit()
+            conn.close()
+            self._load_products()

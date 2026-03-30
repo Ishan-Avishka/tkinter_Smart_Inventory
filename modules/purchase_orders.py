@@ -131,3 +131,73 @@ class PurchaseOrdersModule(ttk.Frame):
             conn.commit()
             conn.close()
             self._load()
+
+    def _view_items(self):
+        po = self._get_selected_po()
+        if not po: return
+        POItemsViewer(self, po)
+
+    def _cancel_po(self):
+        po = self._get_selected_po()
+        if not po: return
+        if po["status"] == "Received":
+            info_dialog(self, "Cannot Cancel", "Cannot cancel a received PO.")
+            return
+        if confirm_dialog(self, "Cancel PO", f"Cancel PO {po['po_number']}?"):
+            conn = get_connection()
+            conn.execute("UPDATE purchase_orders SET status='Cancelled' WHERE id=?",
+                         (po["id"],))
+            conn.commit()
+            conn.close()
+            self._load()
+
+
+class PODialog(tk.Toplevel):
+    def __init__(self, parent, on_save=None):
+        super().__init__(parent)
+        self.on_save = on_save
+        self.title("New Purchase Order")
+        self.configure(bg=COLORS["bg_panel"])
+        self.geometry("800x700")
+        self.items = []
+        self._build()
+        self.grab_set()
+        self.transient(parent)
+
+    def _build(self):
+        section_header(self, "Order Details").pack(fill="x", padx=12, pady=(12, 4))
+        hf = tk.Frame(self, bg=COLORS["bg_card"])
+        hf.pack(fill="x", padx=12, pady=4)
+        hf.columnconfigure(1, weight=1); hf.columnconfigure(3, weight=1)
+
+        conn = get_connection()
+        sups = [(r["id"], r["name"]) for r in
+                conn.execute("SELECT id,name FROM suppliers WHERE status='Active' ORDER BY name")]
+        conn.close()
+        self._sup_map = {n: i for i, n in sups}
+
+        tk.Label(hf, text="Supplier*", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=0, column=0, sticky="w", padx=8, pady=6)
+        self.v_sup = tk.StringVar()
+        ttk.Combobox(hf, textvariable=self.v_sup, values=[n for _, n in sups],
+                     state="readonly", width=28, font=FONTS["entry"]).grid(
+            row=0, column=1, sticky="ew", padx=8, pady=6)
+
+        tk.Label(hf, text="Expected Date", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=0, column=2, sticky="w", padx=8, pady=6)
+        self.v_exp = tk.StringVar(value=str(date.today() + timedelta(days=14)))
+        ttk.Entry(hf, textvariable=self.v_exp, width=16, font=FONTS["entry"]).grid(
+            row=0, column=3, sticky="ew", padx=8, pady=6)
+
+        tk.Label(hf, text="Notes", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=1, column=0, sticky="w", padx=8, pady=6)
+        self.v_notes = tk.StringVar()
+        ttk.Entry(hf, textvariable=self.v_notes, width=50, font=FONTS["entry"]).grid(
+            row=1, column=1, columnspan=3, sticky="ew", padx=8, pady=6)
+
+        section_header(self, "Order Items").pack(fill="x", padx=12, pady=(12, 4))
+        add_row = tk.Frame(self, bg=COLORS["bg_card"])
+        add_row.pack(fill="x", padx=12, pady=4)

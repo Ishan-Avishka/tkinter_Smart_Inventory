@@ -55,3 +55,42 @@ class PurchaseOrdersModule(ttk.Frame):
         tf, self.tree = make_scrollable_treeview(self, cols, widths, height=24)
         tf.pack(fill="both", expand=True, padx=16, pady=(6, 16))
         self.tree.bind("<Double-1>", lambda _: self._view_items())
+
+    def _load(self, *_):
+        for r in self.tree.get_children(): self.tree.delete(r)
+        q = self.search_var.get().lower()
+        status = self.status_var.get()
+        sql = """SELECT po.*, s.name AS supplier_name FROM purchase_orders po
+                 LEFT JOIN suppliers s ON s.id = po.supplier_id WHERE 1=1"""
+        params = []
+        if status != "All":
+            sql += " AND po.status=?"
+            params.append(status)
+        conn = get_connection()
+        rows = conn.execute(sql + " ORDER BY po.order_date DESC", params).fetchall()
+        conn.close()
+        for i, r in enumerate(rows):
+            vals = (r["po_number"], r["supplier_name"], r["order_date"][:10],
+                    (r["expected_date"] or "")[:10], f"${r['total_amount']:,.2f}",
+                    r["status"], r["notes"] or "")
+            if q and not any(q in str(v).lower() for v in vals):
+                continue
+            tag = "odd" if i % 2 == 0 else "even"
+            if r["status"] == "Pending":   tag = "warn"
+            if r["status"] == "Cancelled": tag = "low"
+            self.tree.insert("", "end", values=vals, tags=(tag,))
+
+    def _new_po(self):
+        PODialog(self, on_save=self._load)
+
+    def _get_selected_po(self):
+        sel = self.tree.selection()
+        if not sel:
+            info_dialog(self, "Select", "Please select a purchase order.")
+            return None
+        po_num = self.tree.item(sel[0])["values"][0]
+        conn = get_connection()
+        po = conn.execute("SELECT * FROM purchase_orders WHERE po_number=?",
+                          (po_num,)).fetchone()
+        conn.close()
+        return dict(po) if po else None

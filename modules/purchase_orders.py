@@ -94,3 +94,40 @@ class PurchaseOrdersModule(ttk.Frame):
                           (po_num,)).fetchone()
         conn.close()
         return dict(po) if po else None
+
+    def _receive_po(self):
+        po = self._get_selected_po()
+        if not po: return
+        if po["status"] in ("Received", "Cancelled"):
+            info_dialog(self, "Cannot Receive",
+                        f"PO is already {po['status']}.")
+            return
+        if confirm_dialog(self, "Receive PO",
+                          f"Mark {po['po_number']} as fully received?\nThis will update stock levels."):
+            conn = get_connection()
+            items = conn.execute(
+                "SELECT * FROM purchase_order_items WHERE po_id=?",
+                (po["id"],)).fetchall()
+            for item in items:
+                qty = item["quantity"]
+                conn.execute(
+                    "UPDATE products SET current_stock = current_stock + ? WHERE id=?",
+                    (qty, item["product_id"]))
+                prod = conn.execute("SELECT current_stock FROM products WHERE id=?",
+                                    (item["product_id"],)).fetchone()
+                conn.execute("""INSERT INTO stock_movements
+                    (product_id,movement_type,quantity,reference_id,reference_type,
+                     notes,moved_by,stock_before,stock_after)
+                    VALUES (?,?,?,?,?,?,?,?,?)""",
+                    (item["product_id"], "IN", qty, po["id"], "Purchase Order",
+                     f"Received from PO {po['po_number']}", "System",
+                     prod["current_stock"] - qty, prod["current_stock"]))
+                conn.execute(
+                    "UPDATE purchase_order_items SET received_qty=? WHERE id=?",
+                    (qty, item["id"]))
+            conn.execute(
+                "UPDATE purchase_orders SET status='Received', received_date=datetime('now') WHERE id=?",
+                (po["id"],))
+            conn.commit()
+            conn.close()
+            self._load()

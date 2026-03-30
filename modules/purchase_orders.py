@@ -201,3 +201,145 @@ class PODialog(tk.Toplevel):
         section_header(self, "Order Items").pack(fill="x", padx=12, pady=(12, 4))
         add_row = tk.Frame(self, bg=COLORS["bg_card"])
         add_row.pack(fill="x", padx=12, pady=4)
+
+        conn2 = get_connection()
+        prods = [(r["id"], r["sku"], r["name"], r["cost_price"]) for r in
+                 conn2.execute("SELECT id,sku,name,cost_price FROM products WHERE status='Active' ORDER BY name")]
+        conn2.close()
+        self._prod_map = {f"{r[1]} - {r[2]}": (r[0], r[3]) for r in prods}
+
+        tk.Label(add_row, text="Product:", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).pack(side="left", padx=8, pady=6)
+        self.v_prod = tk.StringVar()
+        prod_combo = ttk.Combobox(add_row, textvariable=self.v_prod,
+                                  values=list(self._prod_map.keys()),
+                                  state="readonly", width=36, font=FONTS["entry"])
+        prod_combo.pack(side="left", padx=4)
+        prod_combo.bind("<<ComboboxSelected>>", self._on_prod_select)
+
+        tk.Label(add_row, text="Qty:", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).pack(side="left", padx=(12, 4))
+        self.v_qty = tk.StringVar(value="1")
+        ttk.Entry(add_row, textvariable=self.v_qty, width=8, font=FONTS["entry"]).pack(side="left")
+
+        tk.Label(add_row, text="Unit Cost $:", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).pack(side="left", padx=(12, 4))
+        self.v_unit_cost = tk.StringVar(value="0.00")
+        ttk.Entry(add_row, textvariable=self.v_unit_cost, width=10, font=FONTS["entry"]).pack(side="left")
+        ttk.Button(add_row, text="＋ Add Item", style="Accent.TButton",
+                   command=self._add_item).pack(side="left", padx=12)
+
+        cols = ["Product", "SKU", "Quantity", "Unit Cost", "Line Total"]
+        widths = {"Product": 240, "SKU": 90, "Quantity": 80, "Unit Cost": 100, "Line Total": 110}
+        tf, self.items_tree = make_scrollable_treeview(self, cols, widths, height=8)
+        tf.pack(fill="both", expand=True, padx=12, pady=4)
+
+        ttk.Button(self, text="🗑 Remove Item", style="Danger.TButton",
+                   command=self._remove_item).pack(anchor="e", padx=12)
+
+        total_row = tk.Frame(self, bg=COLORS["bg_panel"])
+        total_row.pack(fill="x", padx=12, pady=6)
+        tk.Label(total_row, text="TOTAL:", bg=COLORS["bg_panel"],
+                 fg=COLORS["text_secondary"], font=FONTS["subtitle"]).pack(side="left", padx=8)
+        self.v_total_lbl = tk.Label(total_row, text="$0.00", bg=COLORS["bg_panel"],
+                                    fg=COLORS["accent"], font=FONTS["metric_sm"])
+        self.v_total_lbl.pack(side="left")
+
+        btn_r = tk.Frame(self, bg=COLORS["bg_panel"])
+        btn_r.pack(fill="x", padx=12, pady=12)
+        ttk.Button(btn_r, text="✓ Create Purchase Order",
+                   style="Accent.TButton", command=self._save).pack(side="right", padx=8)
+        ttk.Button(btn_r, text="✕ Cancel", style="Ghost.TButton",
+                   command=self.destroy).pack(side="right")
+
+    def _on_prod_select(self, _):
+        key = self.v_prod.get()
+        if key in self._prod_map:
+            self.v_unit_cost.set(f"{self._prod_map[key][1]:.2f}")
+
+    def _add_item(self):
+        key = self.v_prod.get()
+        if not key:
+            error_dialog(self, "Error", "Select a product.")
+            return
+        try:
+            qty = int(self.v_qty.get())
+            cost = float(self.v_unit_cost.get())
+        except ValueError:
+            error_dialog(self, "Error", "Invalid quantity or cost.")
+            return
+        prod_id, _ = self._prod_map[key]
+        sku = key.split(" - ")[0]
+        name = " - ".join(key.split(" - ")[1:])
+        line = qty * cost
+        self.items.append({"product_id": prod_id, "name": name, "sku": sku,
+                           "quantity": qty, "unit_cost": cost})
+        self.items_tree.insert("", "end",
+                               values=(name, sku, qty, f"${cost:.2f}", f"${line:.2f}"))
+        total = sum(i["quantity"] * i["unit_cost"] for i in self.items)
+        self.v_total_lbl.config(text=f"${total:,.2f}")
+
+    def _remove_item(self):
+        sel = self.items_tree.selection()
+        if not sel: return
+        idx = self.items_tree.index(sel[0])
+        self.items.pop(idx)
+        self.items_tree.delete(sel[0])
+        total = sum(i["quantity"] * i["unit_cost"] for i in self.items)
+        self.v_total_lbl.config(text=f"${total:,.2f}")
+
+    def _save(self):
+        sup_name = self.v_sup.get()
+        if not sup_name:
+            error_dialog(self, "Error", "Select a supplier.")
+            return
+        if not self.items:
+            error_dialog(self, "Error", "Add at least one item.")
+            return
+        sup_id = self._sup_map[sup_name]
+        total = sum(i["quantity"] * i["unit_cost"] for i in self.items)
+        po_num = f"PO-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        conn = get_connection()
+        cur = conn.execute("""INSERT INTO purchase_orders
+            (po_number,supplier_id,expected_date,total_amount,notes,status)
+            VALUES (?,?,?,?,?,'Pending')""",
+            (po_num, sup_id, self.v_exp.get(), total, self.v_notes.get()))
+        po_id = cur.lastrowid
+        for item in self.items:
+            conn.execute("""INSERT INTO purchase_order_items
+                (po_id,product_id,quantity,unit_cost) VALUES (?,?,?,?)""",
+                (po_id, item["product_id"], item["quantity"], item["unit_cost"]))
+        conn.commit()
+        conn.close()
+        if self.on_save: self.on_save()
+        self.destroy()
+
+
+class POItemsViewer(tk.Toplevel):
+    def __init__(self, parent, po):
+        super().__init__(parent)
+        self.title(f"PO Items - {po['po_number']}")
+        self.configure(bg=COLORS["bg_panel"])
+        self.geometry("700x400")
+        conn = get_connection()
+        items = conn.execute("""
+            SELECT p.name, p.sku, poi.quantity, poi.unit_cost, poi.received_qty
+            FROM purchase_order_items poi
+            JOIN products p ON p.id = poi.product_id
+            WHERE poi.po_id=?""", (po["id"],)).fetchall()
+        conn.close()
+
+        cols = ["Product Name", "SKU", "Ordered Qty", "Unit Cost", "Received Qty", "Line Total"]
+        tf, tree = make_scrollable_treeview(self, cols,
+                                            {"Product Name": 220, "SKU": 90,
+                                             "Ordered Qty": 90, "Unit Cost": 90,
+                                             "Received Qty": 90, "Line Total": 100}, height=15)
+        tf.pack(fill="both", expand=True, padx=16, pady=16)
+        for i, r in enumerate(items):
+            lt = r["quantity"] * r["unit_cost"]
+            tree.insert("", "end",
+                        values=(r["name"], r["sku"], r["quantity"],
+                                f"${r['unit_cost']:.2f}", r["received_qty"],
+                                f"${lt:.2f}"),
+                        tags=("odd" if i % 2 == 0 else "even",))
+        self.grab_set()

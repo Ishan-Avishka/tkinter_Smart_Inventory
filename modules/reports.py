@@ -147,3 +147,86 @@ class ReportsModule(ttk.Frame):
             ["PO Number","Supplier","Order Date","Expected Date","Received Date",
              "Total Amount","Status","Notes"],
             [tuple(r) for r in rows])
+
+    def _export_sales(self):
+        conn = get_connection()
+        rows = conn.execute("""SELECT invoice_number, customer_name, customer_email,
+            customer_phone, sale_date, total_amount, discount, tax, payment_method,
+            status, notes FROM sales_records ORDER BY sale_date DESC""").fetchall()
+        conn.close()
+        self._save_csv(
+            f"sales_records_{datetime.now().strftime('%Y%m%d')}.csv",
+            ["Invoice","Customer","Email","Phone","Date","Total","Discount",
+             "Tax","Payment","Status","Notes"],
+            [tuple(r) for r in rows])
+
+    def _export_movements(self):
+        conn = get_connection()
+        rows = conn.execute("""SELECT sm.moved_at, p.sku, p.name,
+            sm.movement_type, sm.quantity, sm.stock_before, sm.stock_after,
+            sm.reference_type, sm.notes, sm.moved_by
+            FROM stock_movements sm JOIN products p ON p.id=sm.product_id
+            ORDER BY sm.moved_at DESC""").fetchall()
+        conn.close()
+        self._save_csv(
+            f"stock_movements_{datetime.now().strftime('%Y%m%d')}.csv",
+            ["Date","SKU","Product","Type","Quantity","Stock Before","Stock After",
+             "Reference","Notes","By"],
+            [tuple(r) for r in rows])
+
+    def _export_alerts(self):
+        conn = get_connection()
+        rows = conn.execute("""SELECT a.alert_type, p.name, p.sku, a.message,
+            a.created_at, CASE a.is_read WHEN 1 THEN 'Read' ELSE 'Unread' END AS status
+            FROM alerts a LEFT JOIN products p ON p.id=a.product_id
+            ORDER BY a.created_at DESC""").fetchall()
+        conn.close()
+        self._save_csv(
+            f"alerts_{datetime.now().strftime('%Y%m%d')}.csv",
+            ["Type","Product","SKU","Message","Created At","Status"],
+            [tuple(r) for r in rows])
+
+    # ── PDF ────────────────────────────────────────────────────────────────
+    def _build_pdf_tab(self):
+        f = self.tab_pdf
+        section_header(f, "PDF Report Generator").pack(fill="x", padx=12, pady=(12, 4))
+
+        opt_f = tk.Frame(f, bg=COLORS["bg_card"])
+        opt_f.pack(fill="x", padx=12, pady=8)
+
+        tk.Label(opt_f, text="Report Type:", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=0, column=0, sticky="w", padx=12, pady=8)
+        self.v_pdf_type = tk.StringVar(value="Inventory Summary")
+        ttk.Combobox(opt_f, textvariable=self.v_pdf_type,
+                     values=["Inventory Summary", "Stock Status Report",
+                              "Sales Report", "Purchase Orders Report",
+                              "Low Stock Report", "Full Warehouse Report"],
+                     state="readonly", width=28, font=FONTS["entry"]).grid(
+            row=0, column=1, sticky="ew", padx=12, pady=8)
+
+        tk.Label(opt_f, text="Company Name:", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=1, column=0, sticky="w", padx=12, pady=8)
+        self.v_company = tk.StringVar(value="Smart Inventory Co.")
+        ttk.Entry(opt_f, textvariable=self.v_company, width=30, font=FONTS["entry"]).grid(
+            row=1, column=1, sticky="ew", padx=12, pady=8)
+
+        tk.Label(opt_f, text="Report Title:", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=2, column=0, sticky="w", padx=12, pady=8)
+        self.v_title = tk.StringVar(value="Warehouse Management Report")
+        ttk.Entry(opt_f, textvariable=self.v_title, width=30, font=FONTS["entry"]).grid(
+            row=2, column=1, sticky="ew", padx=12, pady=8)
+
+        btn_row = tk.Frame(f, bg=COLORS["bg_panel"])
+        btn_row.pack(fill="x", padx=12, pady=8)
+        ttk.Button(btn_row, text="📄 Generate PDF Report",
+                   style="Accent.TButton", command=self._gen_pdf).pack(side="left", padx=8)
+
+        # Preview area
+        section_header(f, "PDF Preview").pack(fill="x", padx=12, pady=(12, 4))
+        self.preview_txt = tk.Text(f, height=12, bg=COLORS["bg_input"],
+                                   fg=COLORS["text_secondary"], font=FONTS["mono"],
+                                   relief="flat", state="disabled", padx=8, pady=6)
+        self.preview_txt.pack(fill="both", expand=True, padx=12, pady=(0, 12))

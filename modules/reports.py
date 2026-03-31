@@ -230,3 +230,108 @@ class ReportsModule(ttk.Frame):
                                    fg=COLORS["text_secondary"], font=FONTS["mono"],
                                    relief="flat", state="disabled", padx=8, pady=6)
         self.preview_txt.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+
+    def _gen_pdf(self):
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib import colors as rl_colors
+            from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
+                                             Paragraph, Spacer)
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import cm
+
+            path = filedialog.asksaveasfilename(
+                initialdir=REPORTS_DIR,
+                initialfile=f"report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                defaultextension=".pdf",
+                filetypes=[("PDF Files", "*.pdf")])
+            if not path: return
+
+            doc = SimpleDocTemplate(path, pagesize=A4,
+                                    rightMargin=1.5*cm, leftMargin=1.5*cm,
+                                    topMargin=2*cm, bottomMargin=1.5*cm)
+            styles = getSampleStyleSheet()
+            h1 = ParagraphStyle("h1", fontSize=18, textColor=rl_colors.HexColor("#F97316"),
+                                 spaceAfter=8, fontName="Helvetica-Bold")
+            h2 = ParagraphStyle("h2", fontSize=13, textColor=rl_colors.HexColor("#3B82F6"),
+                                 spaceAfter=6, fontName="Helvetica-Bold")
+            body_s = ParagraphStyle("body", fontSize=9, textColor=rl_colors.black,
+                                    spaceAfter=4)
+
+            story = []
+            story.append(Paragraph(self.v_company.get(), h1))
+            story.append(Paragraph(self.v_title.get(), h2))
+            story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", body_s))
+            story.append(Spacer(1, 0.5*cm))
+
+            conn = get_connection()
+            rtype = self.v_pdf_type.get()
+
+            if rtype in ("Inventory Summary", "Full Warehouse Report",
+                         "Stock Status Report", "Low Stock Report"):
+                story.append(Paragraph("Product Inventory", h2))
+                sql = """SELECT p.sku, p.name, p.current_stock, p.min_stock,
+                    p.selling_price, p.status FROM products p WHERE p.status='Active'"""
+                if rtype == "Low Stock Report":
+                    sql += " AND p.current_stock <= p.min_stock"
+                sql += " ORDER BY p.name"
+                rows = conn.execute(sql).fetchall()
+                tdata = [["SKU", "Product Name", "Stock", "Min", "Price", "Status"]]
+                for r in rows:
+                    tdata.append([r[0], r[1][:30], str(r[2]), str(r[3]),
+                                  f"${r[4]:.2f}", r[5]])
+                t = Table(tdata, repeatRows=1, colWidths=[2.5*cm, 7*cm, 2*cm, 2*cm, 2*cm, 2*cm])
+                t.setStyle(TableStyle([
+                    ("BACKGROUND", (0,0), (-1,0), rl_colors.HexColor("#F97316")),
+                    ("TEXTCOLOR",  (0,0), (-1,0), rl_colors.white),
+                    ("FONTNAME",   (0,0), (-1,0), "Helvetica-Bold"),
+                    ("FONTSIZE",   (0,0), (-1,-1), 8),
+                    ("ROWBACKGROUNDS", (0,1), (-1,-1),
+                     [rl_colors.HexColor("#F5F5F5"), rl_colors.white]),
+                    ("GRID", (0,0), (-1,-1), 0.3, rl_colors.lightgrey),
+                    ("ALIGN", (2,0), (4,-1), "CENTER"),
+                ]))
+                story.append(t)
+                story.append(Spacer(1, 0.5*cm))
+
+            if rtype in ("Sales Report", "Full Warehouse Report"):
+                story.append(Paragraph("Recent Sales Records", h2))
+                rows = conn.execute("""SELECT invoice_number, customer_name,
+                    sale_date, total_amount, payment_method, status
+                    FROM sales_records ORDER BY sale_date DESC LIMIT 50""").fetchall()
+                tdata = [["Invoice", "Customer", "Date", "Total", "Payment", "Status"]]
+                for r in rows:
+                    tdata.append([r[0], (r[1] or "Walk-in")[:20],
+                                  r[2][:10], f"${r[3]:.2f}", r[4], r[5]])
+                t = Table(tdata, repeatRows=1,
+                          colWidths=[3.5*cm, 5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm])
+                t.setStyle(TableStyle([
+                    ("BACKGROUND", (0,0), (-1,0), rl_colors.HexColor("#3B82F6")),
+                    ("TEXTCOLOR",  (0,0), (-1,0), rl_colors.white),
+                    ("FONTNAME",   (0,0), (-1,0), "Helvetica-Bold"),
+                    ("FONTSIZE",   (0,0), (-1,-1), 8),
+                    ("ROWBACKGROUNDS", (0,1), (-1,-1),
+                     [rl_colors.HexColor("#F5F5F5"), rl_colors.white]),
+                    ("GRID", (0,0), (-1,-1), 0.3, rl_colors.lightgrey),
+                ]))
+                story.append(t)
+
+            conn.close()
+            doc.build(story)
+            self.preview_txt.config(state="normal")
+            self.preview_txt.delete("1.0", "end")
+            self.preview_txt.insert("end",
+                f"✓ PDF generated successfully!\n"
+                f"Path: {path}\n"
+                f"Type: {rtype}\n"
+                f"Company: {self.v_company.get()}\n"
+                f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            self.preview_txt.config(state="disabled")
+            info_dialog(self, "PDF Created", f"Report saved:\n{path}")
+
+        except ImportError:
+            error_dialog(self, "Missing Package",
+                         "reportlab is required for PDF export.\n"
+                         "Run: pip install reportlab")
+        except Exception as e:
+            error_dialog(self, "Export Error", str(e))

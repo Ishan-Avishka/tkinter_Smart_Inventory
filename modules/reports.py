@@ -89,3 +89,61 @@ class ReportsModule(ttk.Frame):
         self._log(f"Saved: {path}")
         info_dialog(self, "Export Complete", f"Report saved:\n{path}")
         return path
+
+    def _export_products(self):
+        conn = get_connection()
+        rows = conn.execute("""SELECT p.sku, p.name, c.name AS category,
+            s.name AS supplier, p.unit, p.cost_price, p.selling_price,
+            p.current_stock, p.min_stock, p.max_stock, p.reorder_point,
+            p.barcode, p.location, p.status, p.created_at
+            FROM products p
+            LEFT JOIN categories c ON c.id=p.category_id
+            LEFT JOIN suppliers s ON s.id=p.supplier_id
+            ORDER BY p.name""").fetchall()
+        conn.close()
+        self._save_csv(
+            f"products_{datetime.now().strftime('%Y%m%d')}.csv",
+            ["SKU","Name","Category","Supplier","Unit","Cost Price","Selling Price",
+             "Current Stock","Min Stock","Max Stock","Reorder Point","Barcode",
+             "Location","Status","Created At"],
+            [tuple(r) for r in rows])
+
+    def _export_stock(self):
+        conn = get_connection()
+        rows = conn.execute("""SELECT p.sku, p.name, p.current_stock, p.min_stock,
+            p.max_stock, p.reorder_point,
+            CASE WHEN p.current_stock=0 THEN 'Out of Stock'
+                 WHEN p.current_stock<=p.min_stock THEN 'Low Stock'
+                 WHEN p.current_stock>=p.max_stock THEN 'Overstocked'
+                 ELSE 'OK' END AS stock_status,
+            p.location, c.name AS category
+            FROM products p LEFT JOIN categories c ON c.id=p.category_id
+            WHERE p.status='Active' ORDER BY p.current_stock ASC""").fetchall()
+        conn.close()
+        self._save_csv(
+            f"stock_levels_{datetime.now().strftime('%Y%m%d')}.csv",
+            ["SKU","Name","Current Stock","Min Stock","Max Stock",
+             "Reorder Point","Status","Location","Category"],
+            [tuple(r) for r in rows])
+
+    def _export_suppliers(self):
+        conn = get_connection()
+        rows = conn.execute("SELECT name,contact_person,email,phone,address,city,country,payment_terms,status FROM suppliers ORDER BY name").fetchall()
+        conn.close()
+        self._save_csv(
+            f"suppliers_{datetime.now().strftime('%Y%m%d')}.csv",
+            ["Name","Contact","Email","Phone","Address","City","Country","Payment Terms","Status"],
+            [tuple(r) for r in rows])
+
+    def _export_pos(self):
+        conn = get_connection()
+        rows = conn.execute("""SELECT po.po_number, s.name AS supplier, po.order_date,
+            po.expected_date, po.received_date, po.total_amount, po.status, po.notes
+            FROM purchase_orders po LEFT JOIN suppliers s ON s.id=po.supplier_id
+            ORDER BY po.order_date DESC""").fetchall()
+        conn.close()
+        self._save_csv(
+            f"purchase_orders_{datetime.now().strftime('%Y%m%d')}.csv",
+            ["PO Number","Supplier","Order Date","Expected Date","Received Date",
+             "Total Amount","Status","Notes"],
+            [tuple(r) for r in rows])

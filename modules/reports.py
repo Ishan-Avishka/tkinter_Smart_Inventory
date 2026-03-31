@@ -66,3 +66,26 @@ class ReportsModule(ttk.Frame):
         self.log_txt = tk.Text(f, height=6, bg=COLORS["bg_input"],
                                fg=COLORS["text_secondary"], font=FONTS["mono"],
                                relief="flat", state="disabled", padx=8, pady=6)
+        self.log_txt.pack(fill="x", padx=12, pady=(0, 12))
+
+    def _log(self, msg):
+        self.log_txt.config(state="normal")
+        ts = datetime.now().strftime("%H:%M:%S")
+        self.log_txt.insert("end", f"[{ts}] {msg}\n")
+        self.log_txt.see("end")
+        self.log_txt.config(state="disabled")
+
+    def _save_csv(self, filename, headers, rows):
+        path = filedialog.asksaveasfilename(
+            initialdir=REPORTS_DIR,
+            initialfile=filename,
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")])
+        if not path: return None
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)
+            writer.writerows(rows)
+        self._log(f"Saved: {path}")
+        info_dialog(self, "Export Complete", f"Report saved:\n{path}")
+        return path

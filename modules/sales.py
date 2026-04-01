@@ -18,3 +18,18 @@ class SalesModule(ttk.Frame):
         self.search_var.trace_add("write", lambda *_: self._load())
         self._build_ui()
         self._load()
+
+    def _build_ui(self):
+        top = ttk.Frame(self, style="Panel.TFrame")
+        top.pack(fill="x", padx=16, pady=(12, 6))
+        tk.Label(top, text="SALES RECORDS", bg=COLORS["bg_panel"],
+                 fg=COLORS["accent"], font=FONTS["title"]).pack(side="left")
+
+        bf = ttk.Frame(top, style="Panel.TFrame")
+        bf.pack(side="right")
+        ttk.Button(bf, text="＋ New Sale", style="Accent.TButton",
+                   command=self._new_sale).pack(side="left", padx=4)
+        ttk.Button(bf, text="👁 View Items", style="Blue.TButton",
+                   command=self._view_items).pack(side="left", padx=4)
+        ttk.Button(bf, text="🗑 Void Sale", style="Danger.TButton",
+                   command=self._void_sale).pack(side="left", padx=4)

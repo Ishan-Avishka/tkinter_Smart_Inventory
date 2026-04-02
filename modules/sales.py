@@ -238,3 +238,120 @@ class SaleDialog(tk.Toplevel):
                    command=self._save).pack(side="right", padx=8)
         ttk.Button(btn_r, text="✕ Cancel", style="Ghost.TButton",
                    command=self.destroy).pack(side="right")
+
+    def _on_prod_select(self, _):
+        key = self.v_prod.get()
+        if key in self._prod_map:
+            self.v_price.set(f"{self._prod_map[key][1]:.2f}")
+
+    def _add_item(self):
+        key = self.v_prod.get()
+        if not key:
+            error_dialog(self, "Error", "Select a product.")
+            return
+        try:
+            qty = int(self.v_qty.get())
+            price = float(self.v_price.get())
+        except ValueError:
+            error_dialog(self, "Error", "Invalid qty or price.")
+            return
+        prod_id, _, avail = self._prod_map[key]
+        if qty > avail:
+            error_dialog(self, "Stock Error",
+                         f"Only {avail} units available.")
+            return
+        sku  = key.split(" - ")[0]
+        name = " - ".join(key.split(" - ")[1:])
+        self.cart.append({"product_id": prod_id, "name": name, "sku": sku,
+                          "quantity": qty, "unit_price": price})
+        self.cart_tree.insert("", "end",
+                              values=(name, sku, qty, f"${price:.2f}", f"${qty*price:.2f}"))
+        self._update_total()
+
+    def _remove_item(self):
+        sel = self.cart_tree.selection()
+        if not sel: return
+        idx = self.cart_tree.index(sel[0])
+        self.cart.pop(idx)
+        self.cart_tree.delete(sel[0])
+        self._update_total()
+
+    def _update_total(self):
+        sub = sum(i["quantity"] * i["unit_price"] for i in self.cart)
+        try:    disc = float(self.v_discount.get() or 0)
+        except: disc = 0
+        try:    tax  = float(self.v_tax.get() or 0)
+        except: tax  = 0
+        total = sub - disc + tax
+        self.lbl_total.config(text=f"${total:,.2f}")
+
+    def _save(self):
+        if not self.cart:
+            error_dialog(self, "Error", "Cart is empty.")
+            return
+        try:
+            disc = float(self.v_discount.get() or 0)
+            tax  = float(self.v_tax.get() or 0)
+        except ValueError:
+            error_dialog(self, "Error", "Invalid discount or tax.")
+            return
+        sub   = sum(i["quantity"] * i["unit_price"] for i in self.cart)
+        total = sub - disc + tax
+        inv   = f"INV-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        conn  = get_connection()
+        cur = conn.execute("""INSERT INTO sales_records
+            (invoice_number,customer_name,customer_email,customer_phone,
+             total_amount,discount,tax,payment_method,status)
+            VALUES (?,?,?,?,?,?,?,'Completed','Completed')""",   # typo fix
+            (inv, self.v_cust_name.get() or "Walk-in",
+             self.v_cust_email.get(), self.v_cust_phone.get(),
+             total, disc, tax))
+        # oops – re-fix: use v_payment
+        conn.execute("UPDATE sales_records SET payment_method=? WHERE id=?",
+                     (self.v_payment.get(), cur.lastrowid))
+        sale_id = cur.lastrowid
+        for item in self.cart:
+            conn.execute("""INSERT INTO sale_items
+                (sale_id,product_id,quantity,unit_price) VALUES (?,?,?,?)""",
+                (sale_id, item["product_id"], item["quantity"], item["unit_price"]))
+            prod = conn.execute("SELECT current_stock FROM products WHERE id=?",
+                                (item["product_id"],)).fetchone()
+            before = prod["current_stock"]
+            after  = before - item["quantity"]
+            conn.execute("UPDATE products SET current_stock=? WHERE id=?",
+                         (after, item["product_id"]))
+            conn.execute("""INSERT INTO stock_movements
+                (product_id,movement_type,quantity,reference_id,reference_type,
+                 notes,moved_by,stock_before,stock_after)
+                VALUES(?,?,?,?,?,?,?,?,?)""",
+                (item["product_id"], "OUT", item["quantity"], sale_id,
+                 "Sale", f"Invoice {inv}", "POS", before, after))
+        conn.commit()
+        conn.close()
+        if self.on_save: self.on_save()
+        self.destroy()
+
+
+class SaleItemsViewer(tk.Toplevel):
+    def __init__(self, parent, sale):
+        super().__init__(parent)
+        self.title(f"Sale Items - {sale['invoice_number']}")
+        self.configure(bg=COLORS["bg_panel"])
+        self.geometry("660x380")
+        conn = get_connection()
+        items = conn.execute("""SELECT p.name, p.sku, si.quantity, si.unit_price
+            FROM sale_items si JOIN products p ON p.id=si.product_id
+            WHERE si.sale_id=?""", (sale["id"],)).fetchall()
+        conn.close()
+        cols = ["Product", "SKU", "Quantity", "Unit Price", "Line Total"]
+        tf, tree = make_scrollable_treeview(self, cols,
+                                            {"Product": 240, "SKU": 90, "Quantity": 80,
+                                             "Unit Price": 100, "Line Total": 110}, height=12)
+        tf.pack(fill="both", expand=True, padx=16, pady=16)
+        for i, r in enumerate(items):
+            tree.insert("", "end",
+                        values=(r["name"], r["sku"], r["quantity"],
+                                f"${r['unit_price']:.2f}",
+                                f"${r['quantity']*r['unit_price']:.2f}"),
+                        tags=("odd" if i % 2 == 0 else "even",))
+        self.grab_set()

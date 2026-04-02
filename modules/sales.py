@@ -172,3 +172,69 @@ class SaleDialog(tk.Toplevel):
         section_header(self, "Add Products").pack(fill="x", padx=12, pady=(10, 4))
         ar = tk.Frame(self, bg=COLORS["bg_card"])
         ar.pack(fill="x", padx=12, pady=4)
+
+        conn = get_connection()
+        prods = [(r["id"], r["sku"], r["name"], r["selling_price"], r["current_stock"])
+                 for r in conn.execute(
+                     "SELECT id,sku,name,selling_price,current_stock FROM products WHERE status='Active' ORDER BY name")]
+        conn.close()
+        self._prod_map = {f"{r[1]} - {r[2]}": (r[0], r[3], r[4]) for r in prods}
+
+        tk.Label(ar, text="Product:", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).pack(side="left", padx=8, pady=6)
+        self.v_prod = tk.StringVar()
+        pc = ttk.Combobox(ar, textvariable=self.v_prod,
+                          values=list(self._prod_map.keys()),
+                          state="readonly", width=36, font=FONTS["entry"])
+        pc.pack(side="left", padx=4)
+        pc.bind("<<ComboboxSelected>>", self._on_prod_select)
+
+        tk.Label(ar, text="Qty:", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).pack(side="left", padx=(10, 4))
+        self.v_qty = tk.StringVar(value="1")
+        ttk.Entry(ar, textvariable=self.v_qty, width=7, font=FONTS["entry"]).pack(side="left")
+
+        tk.Label(ar, text="Price $:", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).pack(side="left", padx=(10, 4))
+        self.v_price = tk.StringVar(value="0.00")
+        ttk.Entry(ar, textvariable=self.v_price, width=9, font=FONTS["entry"]).pack(side="left")
+        ttk.Button(ar, text="＋ Add", style="Accent.TButton",
+                   command=self._add_item).pack(side="left", padx=10)
+
+        cols = ["Product", "SKU", "Qty", "Unit Price", "Line Total"]
+        widths = {"Product": 250, "SKU": 90, "Qty": 60, "Unit Price": 100, "Line Total": 110}
+        tf, self.cart_tree = make_scrollable_treeview(self, cols, widths, height=7)
+        tf.pack(fill="both", expand=True, padx=12, pady=4)
+        ttk.Button(self, text="🗑 Remove", style="Danger.TButton",
+                   command=self._remove_item).pack(anchor="e", padx=12)
+
+        # Totals
+        tot = tk.Frame(self, bg=COLORS["bg_card"])
+        tot.pack(fill="x", padx=12, pady=6)
+
+        def tot_row(lbl, row, var, default="0.00"):
+            tk.Label(tot, text=lbl, bg=COLORS["bg_card"],
+                     fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+                row=row, column=0, sticky="e", padx=8, pady=4)
+            v = tk.StringVar(value=default)
+            ttk.Entry(tot, textvariable=v, width=12, font=FONTS["entry"]).grid(
+                row=row, column=1, sticky="w", padx=8, pady=4)
+            return v
+
+        self.v_discount = tot_row("Discount ($):", 0, None)
+        self.v_tax      = tot_row("Tax ($):", 1, None)
+        tk.Label(tot, text="TOTAL:", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["subtitle"]).grid(
+            row=2, column=0, sticky="e", padx=8, pady=6)
+        self.lbl_total = tk.Label(tot, text="$0.00", bg=COLORS["bg_card"],
+                                  fg=COLORS["accent"], font=FONTS["metric_sm"])
+        self.lbl_total.grid(row=2, column=1, sticky="w", padx=8)
+        self.v_discount.trace_add("write", lambda *_: self._update_total())
+        self.v_tax.trace_add("write", lambda *_: self._update_total())
+
+        btn_r = tk.Frame(self, bg=COLORS["bg_panel"])
+        btn_r.pack(fill="x", padx=12, pady=12)
+        ttk.Button(btn_r, text="✓ Complete Sale", style="Accent.TButton",
+                   command=self._save).pack(side="right", padx=8)
+        ttk.Button(btn_r, text="✕ Cancel", style="Ghost.TButton",
+                   command=self.destroy).pack(side="right")

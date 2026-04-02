@@ -128,3 +128,47 @@ class SalesModule(ttk.Frame):
             conn.commit()
             conn.close()
             self._load()
+
+
+class SaleDialog(tk.Toplevel):
+    def __init__(self, parent, on_save=None):
+        super().__init__(parent)
+        self.on_save = on_save
+        self.title("New Sale")
+        self.configure(bg=COLORS["bg_panel"])
+        self.geometry("820x720")
+        self.cart = []
+        self._build()
+        self.grab_set()
+        self.transient(parent)
+
+    def _build(self):
+        section_header(self, "Customer Details").pack(fill="x", padx=12, pady=(12, 4))
+        cf = tk.Frame(self, bg=COLORS["bg_card"])
+        cf.pack(fill="x", padx=12, pady=4)
+        cf.columnconfigure(1, weight=1); cf.columnconfigure(3, weight=1)
+
+        def lbl_entry(lbl, row, col=0, w=24, val=""):
+            tk.Label(cf, text=lbl, bg=COLORS["bg_card"],
+                     fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+                row=row, column=col, sticky="w", padx=8, pady=5)
+            v = tk.StringVar(value=val)
+            ttk.Entry(cf, textvariable=v, width=w, font=FONTS["entry"]).grid(
+                row=row, column=col + 1, sticky="ew", padx=8, pady=5)
+            return v
+
+        self.v_cust_name  = lbl_entry("Customer Name", 0, 0)
+        self.v_cust_email = lbl_entry("Email", 1, 0)
+        self.v_cust_phone = lbl_entry("Phone", 0, 2)
+
+        tk.Label(cf, text="Payment", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=1, column=2, sticky="w", padx=8, pady=5)
+        self.v_payment = tk.StringVar(value="Cash")
+        ttk.Combobox(cf, textvariable=self.v_payment,
+                     values=["Cash", "Card", "Bank Transfer", "Credit"],
+                     state="readonly", width=16).grid(row=1, column=3, sticky="ew", padx=8, pady=5)
+
+        section_header(self, "Add Products").pack(fill="x", padx=12, pady=(10, 4))
+        ar = tk.Frame(self, bg=COLORS["bg_card"])
+        ar.pack(fill="x", padx=12, pady=4)

@@ -33,3 +33,23 @@ class SalesModule(ttk.Frame):
                    command=self._view_items).pack(side="left", padx=4)
         ttk.Button(bf, text="🗑 Void Sale", style="Danger.TButton",
                    command=self._void_sale).pack(side="left", padx=4)
+
+        sr = ttk.Frame(self, style="Panel.TFrame")
+        sr.pack(fill="x", padx=16, pady=4)
+        search_bar(sr, self.search_var, "Search invoice, customer...").pack(side="left")
+
+        tk.Label(sr, text="Status:", bg=COLORS["bg_panel"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).pack(side="left", padx=(12, 4))
+        self.status_var = tk.StringVar(value="All")
+        ttk.Combobox(sr, textvariable=self.status_var,
+                     values=["All", "Completed", "Pending", "Void"],
+                     state="readonly", width=12).pack(side="left")
+        self.status_var.trace_add("write", lambda *_: self._load())
+
+        cols = ["Invoice", "Customer", "Date", "Total", "Discount", "Tax",
+                "Payment", "Status"]
+        widths = {"Invoice": 140, "Customer": 180, "Date": 110, "Total": 100,
+                  "Discount": 80, "Tax": 70, "Payment": 90, "Status": 90}
+        tf, self.tree = make_scrollable_treeview(self, cols, widths, height=24)
+        tf.pack(fill="both", expand=True, padx=16, pady=(6, 16))
+        self.tree.bind("<Double-1>", lambda _: self._view_items())

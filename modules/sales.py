@@ -53,3 +53,29 @@ class SalesModule(ttk.Frame):
         tf, self.tree = make_scrollable_treeview(self, cols, widths, height=24)
         tf.pack(fill="both", expand=True, padx=16, pady=(6, 16))
         self.tree.bind("<Double-1>", lambda _: self._view_items())
+
+    def _load(self, *_):
+        for r in self.tree.get_children(): self.tree.delete(r)
+        q = self.search_var.get().lower()
+        status = self.status_var.get()
+        sql = "SELECT * FROM sales_records WHERE 1=1"
+        params = []
+        if status != "All":
+            sql += " AND status=?"
+            params.append(status)
+        conn = get_connection()
+        rows = conn.execute(sql + " ORDER BY sale_date DESC", params).fetchall()
+        conn.close()
+        for i, r in enumerate(rows):
+            vals = (r["invoice_number"], r["customer_name"] or "Walk-in",
+                    r["sale_date"][:10], f"${r['total_amount']:,.2f}",
+                    f"${r['discount']:.2f}", f"${r['tax']:.2f}",
+                    r["payment_method"], r["status"])
+            if q and not any(q in str(v).lower() for v in vals):
+                continue
+            tag = "odd" if i % 2 == 0 else "even"
+            if r["status"] == "Void": tag = "low"
+            self.tree.insert("", "end", values=vals, tags=(tag,))
+
+    def _new_sale(self):
+        SaleDialog(self, on_save=self._load)

@@ -79,3 +79,52 @@ class SalesModule(ttk.Frame):
 
     def _new_sale(self):
         SaleDialog(self, on_save=self._load)
+
+    def _view_items(self):
+        sel = self.tree.selection()
+        if not sel:
+            info_dialog(self, "Select", "Please select a sale record.")
+            return
+        inv = self.tree.item(sel[0])["values"][0]
+        conn = get_connection()
+        sale = conn.execute("SELECT * FROM sales_records WHERE invoice_number=?",
+                            (inv,)).fetchone()
+        conn.close()
+        if sale:
+            SaleItemsViewer(self, dict(sale))
+
+    def _void_sale(self):
+        sel = self.tree.selection()
+        if not sel:
+            info_dialog(self, "Select", "Please select a sale to void.")
+            return
+        inv = self.tree.item(sel[0])["values"][0]
+        status = self.tree.item(sel[0])["values"][7]
+        if status == "Void":
+            info_dialog(self, "Already Voided", "This sale is already voided.")
+            return
+        if confirm_dialog(self, "Void Sale",
+                          f"Void invoice {inv}? Stock will be restored."):
+            conn = get_connection()
+            sale = conn.execute("SELECT * FROM sales_records WHERE invoice_number=?",
+                                (inv,)).fetchone()
+            items = conn.execute("""SELECT si.*, p.current_stock
+                FROM sale_items si JOIN products p ON p.id=si.product_id
+                WHERE si.sale_id=?""", (sale["id"],)).fetchall()
+            for item in items:
+                conn.execute(
+                    "UPDATE products SET current_stock=current_stock+? WHERE id=?",
+                    (item["quantity"], item["product_id"]))
+                conn.execute("""INSERT INTO stock_movements
+                    (product_id,movement_type,quantity,reference_id,reference_type,
+                     notes,moved_by,stock_before,stock_after)
+                    VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (item["product_id"], "RETURN", item["quantity"], sale["id"],
+                     "Sale Void", f"Voided invoice {inv}", "System",
+                     item["current_stock"],
+                     item["current_stock"] + item["quantity"]))
+            conn.execute("UPDATE sales_records SET status='Void' WHERE id=?",
+                         (sale["id"],))
+            conn.commit()
+            conn.close()
+            self._load()

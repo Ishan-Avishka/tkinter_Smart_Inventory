@@ -233,3 +233,39 @@ class ManualAdjDialog(tk.Toplevel):
                    command=self._save).pack(side="right", padx=8)
         ttk.Button(btn_r, text="✕ Cancel", style="Ghost.TButton",
                    command=self.destroy).pack(side="right")
+
+    def _on_select(self, _):
+        key = self.v_prod.get()
+        if key in self._prod_map:
+            self.lbl_cur.config(text=str(self._prod_map[key][1]))
+
+    def _save(self):
+        key = self.v_prod.get()
+        if not key:
+            error_dialog(self, "Error", "Select a product.")
+            return
+        try:
+            qty = int(self.v_qty.get())
+        except ValueError:
+            error_dialog(self, "Error", "Quantity must be an integer.")
+            return
+        if not self.v_reason.get().strip():
+            error_dialog(self, "Error", "Reason is required.")
+            return
+        prod_id, cur = self._prod_map[key]
+        adj_type = self.v_type.get()
+        if adj_type == "Add":           new_stock = cur + qty
+        elif adj_type == "Remove":      new_stock = max(0, cur - qty)
+        else:                           new_stock = qty
+        conn = get_connection()
+        conn.execute("UPDATE products SET current_stock=? WHERE id=?",
+                     (new_stock, prod_id))
+        conn.execute("""INSERT INTO stock_movements
+            (product_id,movement_type,quantity,reference_type,notes,moved_by,stock_before,stock_after)
+            VALUES(?,?,?,?,?,?,?,?)""",
+            (prod_id, "ADJUSTMENT", abs(new_stock - cur),
+             "Manual", self.v_reason.get(), "Admin", cur, new_stock))
+        conn.commit()
+        conn.close()
+        if self.on_save: self.on_save()
+        self.destroy()

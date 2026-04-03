@@ -176,3 +176,60 @@ class ManualAdjDialog(tk.Toplevel):
         self._build()
         self.grab_set()
         self.transient(parent)
+
+    def _build(self):
+        section_header(self, "Stock Adjustment").pack(fill="x", padx=12, pady=(12, 4))
+        f = tk.Frame(self, bg=COLORS["bg_card"])
+        f.pack(fill="x", padx=12, pady=4)
+
+        conn = get_connection()
+        prods = [(r["id"], r["sku"], r["name"], r["current_stock"]) for r in
+                 conn.execute("SELECT id,sku,name,current_stock FROM products WHERE status='Active' ORDER BY name")]
+        conn.close()
+        self._prod_map = {f"{r[1]} - {r[2]}": (r[0], r[3]) for r in prods}
+
+        tk.Label(f, text="Product*", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=0, column=0, sticky="w", padx=8, pady=8)
+        self.v_prod = tk.StringVar()
+        pc = ttk.Combobox(f, textvariable=self.v_prod,
+                          values=list(self._prod_map.keys()),
+                          state="readonly", width=38, font=FONTS["entry"])
+        pc.grid(row=0, column=1, sticky="ew", padx=8, pady=8)
+        pc.bind("<<ComboboxSelected>>", self._on_select)
+
+        tk.Label(f, text="Current Stock", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=1, column=0, sticky="w", padx=8, pady=8)
+        self.lbl_cur = tk.Label(f, text="—", bg=COLORS["bg_card"],
+                                fg=COLORS["accent"], font=FONTS["subtitle"])
+        self.lbl_cur.grid(row=1, column=1, sticky="w", padx=8)
+
+        tk.Label(f, text="Adjustment Type*", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=2, column=0, sticky="w", padx=8, pady=8)
+        self.v_type = tk.StringVar(value="Add")
+        ttk.Combobox(f, textvariable=self.v_type,
+                     values=["Add", "Remove", "Set Absolute"],
+                     state="readonly", width=18).grid(row=2, column=1, sticky="w", padx=8, pady=8)
+
+        tk.Label(f, text="Quantity*", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=3, column=0, sticky="w", padx=8, pady=8)
+        self.v_qty = tk.StringVar(value="0")
+        ttk.Entry(f, textvariable=self.v_qty, width=12, font=FONTS["entry"]).grid(
+            row=3, column=1, sticky="w", padx=8, pady=8)
+
+        tk.Label(f, text="Reason*", bg=COLORS["bg_card"],
+                 fg=COLORS["text_secondary"], font=FONTS["label"]).grid(
+            row=4, column=0, sticky="w", padx=8, pady=8)
+        self.v_reason = tk.StringVar()
+        ttk.Entry(f, textvariable=self.v_reason, width=38, font=FONTS["entry"]).grid(
+            row=4, column=1, sticky="ew", padx=8, pady=8)
+
+        btn_r = tk.Frame(self, bg=COLORS["bg_panel"])
+        btn_r.pack(fill="x", padx=12, pady=16)
+        ttk.Button(btn_r, text="✓ Apply Adjustment", style="Accent.TButton",
+                   command=self._save).pack(side="right", padx=8)
+        ttk.Button(btn_r, text="✕ Cancel", style="Ghost.TButton",
+                   command=self.destroy).pack(side="right")

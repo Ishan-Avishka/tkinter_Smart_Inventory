@@ -1,0 +1,11 @@
+pillow==10.4.0
+python-barcode==0.15.1
+reportlab==4.2.2
+matplotlib==3.9.2
+pandas==2.2.3
+openpyxl==3.1.5
+qrcode==7.4.2
+ttkbootstrap==1.10.1
+pyzbar==0.1.9
+opencv-python==4.10.0.84
+mysql-connector-python==8.3.0
